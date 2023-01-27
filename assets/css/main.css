@@ -1,0 +1,117 @@
+body, #gameBoard {
+  background: black;
+}
+
+.tile {
+  height: auto;
+  aspect-ratio: 1;
+  position: relative;
+  margin-top: -0.5%;
+  margin-bottom: -0.5%;
+}
+
+.tile_offset {
+  margin-left: 2.5%;
+}
+
+.playerIcon {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: rgb(46, 148, 231);
+  border-radius: 50%;
+  z-index: 5;
+  font-size: 1.75rem;
+}
+
+.cursorPointer {
+  cursor: pointer;
+}
+
+.cursorNotAllowed {
+  cursor: not-allowed;
+}
+
+.hexagon {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+}
+
+
+.hex1 {
+  background: white;
+  -webkit-clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+  clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
+}
+
+.hex1.selected {
+  background: rgb(213, 236, 255);
+}
+
+.hex1.canBeAttacked {
+  background: rgb(255, 213, 213);
+}
+
+.pieceValue {
+  position: absolute;
+  top: 75%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
+  z-index: 5;
+}
+
+.text-blue {
+  color: rgb(46, 148, 231);
+}
+
+.text-red {
+  color: rgb(231, 68, 46);
+}
+
+.moveHereIcon {
+  color: rgb(46, 148, 231);
+  border-radius: 50%;
+  z-index: 5;
+  position: absolute;
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.moveHereIcon.right {
+  top: 28%;
+  left: 7.5%;
+  transform: rotate(90deg);
+}
+
+.moveHereIcon.left {
+  top: 28%;
+  right: 7.5%;
+  transform: rotate(-90deg);
+}
+
+.moveHereIcon.topRight {
+  bottom: 7.5%;
+  right: 25%;
+  transform: rotate(-30deg);
+}
+
+.moveHereIcon.topLeft {
+  bottom: 7.5%;
+  left: 25%;
+  transform: rotate(30deg);
+}
+
+.moveHereIcon.bottomRight {
+  top: 7.5%;
+  left: 25%;
+  transform: rotate(145deg);
+}
+
+.moveHereIcon.bottomLeft {
+  top: 7.5%;
+  right: 25%;
+  transform: rotate(215deg);
+}
