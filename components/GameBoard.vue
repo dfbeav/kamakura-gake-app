@@ -57,6 +57,8 @@ export default Vue.extend({
     return {
       selectedTile: -1 as any,
 
+      surroundingTiles: [] as any,
+
       selectionPossibilities: [] as any,
 
       gamePieces: [
@@ -89,19 +91,48 @@ export default Vue.extend({
   methods: {
     checkSurroundingTiles: function() {
 
-      this.surroundingTiles.forEach((tile: any) => {
+      this.surroundingTiles.forEach((tile: any, index: number) => {
+
         //exclude results that are below 0 or above the board size
-        if (tile.surroundingTileIndex > -1 && tile.surroundingTileIndex < this.gameData.gameBoardData.length) {
-          if (this.gameData.gameBoardData[tile.surroundingTileIndex].playerIndex != this.thisUserIndex) {
+        if (tile.surroundingTileId > -1 && tile.surroundingTileId < this.gameData.gameBoardData.length) {
+          if (this.gameData.gameBoardData[tile.surroundingTileId].playerIndex != this.thisUserIndex) {
 
             let possibility = {
-              tile: tile.surroundingTileIndex,
-              canBeAttacked: this.checkCanBeAttacked(tile.surroundingTileIndex),
-              canMoveTo: this.gameData.gameBoardData[tile.surroundingTileIndex].playerIndex === -1,
+              tile: tile.surroundingTileId,
+              canMoveTo: this.gameData.gameBoardData[tile.surroundingTileId].playerIndex === -1,
               directionFromSelectedTile: tile.direction
             }
 
-            this.$set(this.selectionPossibilities, tile.surroundingTileIndex, possibility)
+            this.$set(this.selectionPossibilities, tile.surroundingTileId, possibility)
+
+
+
+            //find the surrounding tiles of the surrounding tiles
+            this.findSurroundingTiles(tile.surroundingTileId).forEach((adjacentTile: any) => {
+
+              //exclude results that are below 0 or above the board size
+              if (adjacentTile.surroundingTileId > -1 && adjacentTile.surroundingTileId < this.gameData.gameBoardData.length) {
+
+                if (!this.selectionPossibilities[tile.surroundingTileId].hasOwnProperty('surroundingTiles')) {
+                  this.$set(this.selectionPossibilities[tile.surroundingTileId], 'surroundingTiles' , [])
+                }
+
+                let fullTileInfo = {
+                  ...this.gameData.gameBoardData[adjacentTile.surroundingTileId],
+                  'direction': adjacentTile.direction,
+                  'surroundingTileId': adjacentTile.surroundingTileId,
+                }
+
+                console.log(this.selectedTile, tile.surroundingTileId)
+
+                this.selectionPossibilities[tile.surroundingTileId].surroundingTiles.push(fullTileInfo)
+
+
+                //add the canBeAttacked property to the surrounding tiles
+                this.$set(this.selectionPossibilities[tile.surroundingTileId], 'canBeAttacked', this.checkCanBeAttacked(tile.surroundingTileId))
+
+              }
+            })
 
           }
         }
@@ -109,8 +140,20 @@ export default Vue.extend({
     },
     checkCanBeAttacked: function(index:number): any {
 
-      if (this.gameData.gameBoardData[index].playerIndex > -1) {
-        if (this.gameData.gameBoardData[index].value <= this.gameData.gameBoardData[this.selectedTile].value) {
+      if (this.gameData.gameBoardData[this.selectedTile].playerIndex > -1) {
+
+        let adjacentTileCombinations:number = 0;
+
+        //Add up the value of the surrounding friendly units, they can be used in attacks
+        this.selectionPossibilities[index].surroundingTiles.forEach((tile: any) => {
+          if (tile.playerIndex === this.thisUserIndex && tile.surroundingTileId != this.selectedTile) {
+            adjacentTileCombinations = adjacentTileCombinations + tile.value
+            console.log()
+          }
+        })
+
+        //Check if the player can attack this tile (is it's value less than or equal to this adjacent tile?)
+        if (this.gameData.gameBoardData[index].value <= this.gameData.gameBoardData[this.selectedTile].value + adjacentTileCombinations) {
           return true
         } else {
           return false
@@ -144,50 +187,53 @@ export default Vue.extend({
 
       }
     },
-
-  },
-  watch: {
-    selectedTile: function() {
-      this.selectionPossibilities = []
-      //check each tile surrounding the selected tile
-      this.checkSurroundingTiles()
-    },
-  },
-  computed: {
-    surroundingTiles():any {
+    findSurroundingTiles(tileIndex:number):any {
       let tileDistance = ( 100 / this.tileSize )
-
-      console.log(tileDistance)
 
       let array = [
         {
-          surroundingTileIndex: this.selectedTile - 1,
+          surroundingTileId: tileIndex - 1,
           direction: 'left'
         },
         {
-          surroundingTileIndex: this.selectedTile + 1,
+          surroundingTileId: tileIndex + 1,
           direction: 'right'
         },
         {
-          surroundingTileIndex: this.selectedTile - (tileDistance - 1 ),
+          surroundingTileId: tileIndex - (tileDistance - 1 ),
           direction: 'topLeft'
         }, //top left
         {
-          surroundingTileIndex: this.selectedTile - (tileDistance),
+          surroundingTileId: tileIndex - (tileDistance),
           direction: 'topRight'
         }, //top right
         {
-          surroundingTileIndex: this.selectedTile + (tileDistance - 1),
+          surroundingTileId: tileIndex + (tileDistance - 1),
           direction: 'bottomLeft'
         },  //bottom left
         {
-          surroundingTileIndex: this.selectedTile + (tileDistance),
+          surroundingTileId: tileIndex + (tileDistance),
           direction: 'bottomRight'
         },
       ]
 
       return array
     },
+
+  },
+  watch: {
+    selectedTile: function() {
+      this.selectionPossibilities = []
+
+      this.surroundingTiles = this.findSurroundingTiles(this.selectedTile)
+      //check each tile surrounding the selected tile
+
+      if (this.selectedTile > -1) {
+        this.checkSurroundingTiles()
+      }
+    },
+  },
+  computed: {
   }
 
 })

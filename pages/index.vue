@@ -88,7 +88,6 @@ export default Vue.extend({
 
       this.$set(this.gameData.gameBoardData, index, this.gameData.gameBoardData[previousTileIndex])
       this.$set(this.gameData.gameBoardData, previousTileIndex, {
-        value: 0,
         playerIndex: -1
       })
 
@@ -99,9 +98,15 @@ export default Vue.extend({
     loadFakeData: function() {
       const newData125 = {
         playerIndex: 0,
-        value: 3,
+        value: 2,
       }
       this.$set(this.gameData.gameBoardData, 125, newData125)
+
+      const newData126 = {
+        playerIndex: 0,
+        value: 3,
+      }
+      this.$set(this.gameData.gameBoardData, 126, newData126)
 
       const newData105 = {
         playerIndex: 1,
