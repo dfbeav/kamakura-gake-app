@@ -83,7 +83,7 @@ export default Vue.extend({
         },
         {
           value: 4,
-          icon: 'ri-body-scan-fill',
+          icon: 'ri-sword-fill',
         },
         {
           value: 5,
