@@ -47,11 +47,9 @@ body, #gameBoard {
 }
 
 .tile {
-  height: auto;
-  aspect-ratio: 1;
   position: relative;
   margin-top: -0.45%;;
-  margin-bottom: -0.45%;;
+  margin-bottom: -0.45%;
 }
 
 .tile_offset {

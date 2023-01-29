@@ -11,7 +11,7 @@
           selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo  ? 'cursorPointer' : '',
           selectionPossibilities[index] != undefined && !selectionPossibilities[index].canBeAttacked && !selectionPossibilities[index].canMoveTo ? 'cursorNotAllowed' : '',
           ]"
-        :style="'width:' + tileSize + '%;'"
+        :style="'width:' + tileSize + '%; height:' + tileHeight + 'px'"
         @click="tile.moved ? '' : selectOrMove(index)"
         >
           <h1 class="mb-0">
@@ -59,7 +59,7 @@ import Vue from 'vue'
 
 export default Vue.extend({
   name: 'gameBoard',
-  props: ['tileSize', 'thisUserIndex', 'gameData'],
+  props: ['tileSize', 'tileHeight', 'thisUserIndex', 'gameData'],
   data() {
     return {
       selectedTile: -1 as any,

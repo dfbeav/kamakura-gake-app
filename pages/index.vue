@@ -49,6 +49,7 @@
       :gameData="gameData"
       :thisUserIndex="thisUserIndex"
       :tileSize="tileSize"
+      :tileHeight="tileHeight"
     />
     <b-col cols="12" class="my-3 text-center">
       <p class="text-light">「最大の勝利は戦いをすることなくするものである」</p>
@@ -73,6 +74,7 @@ export default Vue.extend({
       boardSize: 390,
 
       tileSize: 5, //in percentage
+      tileHeight: 0, //in pixels
 
       thisUserIndex: 0,
 
@@ -104,8 +106,13 @@ export default Vue.extend({
     this.createBoard()
 
     setTimeout(() => {
-        this.musicVideoURL = this.musicVideoURL + '&autoplay=1';
+        //this.musicVideoURL = this.musicVideoURL + '&autoplay=1';
+        this.setTileHeight();
       }, 1000)
+
+      //Event listener for screen resize
+      window.addEventListener('resize', this.resizeBoard)
+
   },
   methods: {
     createBoard: function() {
@@ -117,6 +124,16 @@ export default Vue.extend({
         if (i === this.boardSize - 1) {
           this.setupGameData();
         }
+      }
+    },
+    resizeBoard: function() {
+      this.setTileHeight()
+    },
+    setTileHeight: function() {
+      //set tile height
+      let firstTile = document.getElementById('tile_0')
+      if (firstTile) {
+        this.tileHeight = firstTile.clientWidth
       }
     },
     moveToTile: function(previousTileIndex:number, index:number):any {
@@ -144,6 +161,7 @@ export default Vue.extend({
       this.thisUserIndex = this.thisUserIndex === 1 ? 0 : this.thisUserIndex + 1
     },
     setupGameData: function() {
+
       let player1Tiles = [
         {tileIndex: 3, playerIndex: 1, value: 5},
         {tileIndex: 4, playerIndex: 1, value: 5},
@@ -308,6 +326,10 @@ export default Vue.extend({
         })
       })
 
+      //Next tick
+      this.$nextTick(() => {
+        this.setTileHeight()
+      })
 
     },
     parsedMusicVideoURL: function() {
