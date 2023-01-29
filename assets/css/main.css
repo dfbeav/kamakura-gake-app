@@ -2,12 +2,56 @@ body, #gameBoard {
   background: black;
 }
 
+.musicButton {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-weight: normal;
+  border-radius: 100%;
+}
+
+#musicPopoverButton:hover + #musicPopover, #musicPopover:hover {
+  opacity: 1;
+  pointer-events: unset;
+  z-index: 20;
+}
+
+#musicPopover {
+  background: white;
+  box-shadow: 0 0 15px rgba(0,0,0,0.33);
+  padding: 10px;
+  border-radius: 3px;
+  min-width: 350px;
+  width: 100%;
+  max-width: 450px;
+  position: absolute;
+  top: 40px;
+  display: flex;
+  flex-wrap: wrap;
+  opacity: 0;
+  pointer-events: none;
+  z-index: -1;
+}
+
+#gameBoard {
+  max-width: 1400px;
+  min-width: 1200px;
+  margin: 0 auto;
+}
+
+.posRel {
+  position: relative;
+}
+
 .tile {
   height: auto;
   aspect-ratio: 1;
   position: relative;
-  margin-top: -0.5%;
-  margin-bottom: -0.5%;
+  margin-top: -0.45%;;
+  margin-bottom: -0.45%;;
 }
 
 .tile_offset {
@@ -23,6 +67,20 @@ body, #gameBoard {
   border-radius: 50%;
   z-index: 5;
   font-size: 1.75rem;
+}
+
+.pieceValue {
+  position: absolute;
+  top: 75%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-weight: bold;
+  z-index: 5;
+}
+
+
+.playerIcon.moved, .pieceValue.moved {
+  opacity: 0.5;
 }
 
 .cursorPointer {
@@ -54,21 +112,20 @@ body, #gameBoard {
   background: rgb(255, 213, 213);
 }
 
-.pieceValue {
-  position: absolute;
-  top: 75%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-weight: bold;
-  z-index: 5;
-}
-
 .text-blue {
   color: rgb(46, 148, 231);
 }
 
 .text-red {
   color: rgb(231, 68, 46);
+}
+
+.bg-blue {
+  background: rgb(46, 148, 231);
+}
+
+.bg-red {
+  background: rgb(231, 68, 46);
 }
 
 .moveHereIcon {

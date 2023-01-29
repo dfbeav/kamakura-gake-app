@@ -12,20 +12,27 @@
           selectionPossibilities[index] != undefined && !selectionPossibilities[index].canBeAttacked && !selectionPossibilities[index].canMoveTo ? 'cursorNotAllowed' : '',
           ]"
         :style="'width:' + tileSize + '%;'"
-        @click="selectOrMove(index)"
+        @click="tile.moved ? '' : selectOrMove(index)"
         >
           <h1 class="mb-0">
               <i
                 v-if="tile.playerIndex > -1"
                 class="playerIcon"
-                :class="[gamePieces[tile.value - 1].icon, 'text-' + gameData.players[tile.playerIndex].color]"
+                :class="[
+                  gamePieces[tile.value - 1].icon,
+                  'text-' + gameData.players[tile.playerIndex].color,
+                  tile.moved ? 'moved' : ''
+                  ]"
                 >
               </i>
           </h1>
           <p
             v-if="tile.playerIndex > -1"
             class="pieceValue"
-            :class="'text-' + gameData.players[tile.playerIndex].color"
+            :class="[
+              'text-' + gameData.players[tile.playerIndex].color,
+              tile.moved ? 'moved' : ''
+              ]"
             >
               {{ tile.value }}
             </p>
@@ -162,6 +169,10 @@ export default Vue.extend({
         return false
       }
     },
+    resetSelectedTile: function() {
+      this.selectionPossibilities = [];
+      this.selectedTile = -1;
+    },
     selectOrMove: function(index:number) {
       //Select a tile if the player owns this tile
       if (this.gameData.gameBoardData[index].playerIndex === this.thisUserIndex) {
@@ -170,19 +181,20 @@ export default Vue.extend({
       } else  {
         //Check if the player can move to this tile
         if (this.selectionPossibilities[index] != undefined && this.selectionPossibilities[index].canMoveTo) {
-          //Clear the selection possibilities
-          this.selectionPossibilities = [];
-          //Move the player to this tile
+
+          //MOVE the player to this tile
           (this.$parent as any).moveToTile(this.selectedTile, index);
 
-          this.selectedTile = index;
+          this.resetSelectedTile()
 
         } else if (this.selectionPossibilities[index] != undefined && this.selectionPossibilities[index].canBeAttacked) {
           //Attack the tile
-          (this.$parent as any).attackTile(this.selectedTile, index);
+          (this.$parent as any).moveToTile(this.selectedTile, index);
+
+          this.resetSelectedTile()
         } else {
           //Otherwise, the player is disselecting the tile
-          this.selectedTile = -1
+          this.resetSelectedTile()
         }
 
       }

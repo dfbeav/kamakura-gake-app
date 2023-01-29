@@ -1,8 +1,40 @@
 <template>
   <b-col>
-    <b-col cols="12" class="d-flex justify-content-center">
-      <b-col sm="12" md="10" lg="8">
+    <b-col cols="12" class="d-flex justify-content-center align-items-center">
+      <b-col sm="6" md="2" lg="3" class="posRel">
+        <span id="musicPopoverButton" class="p-3">
+          <span
+            @click="stopMusic()"
+            class="mb-0 d-inline-flex bg-red musicButton cursorPointer"
+            ><i class="h3 mb-0 ri-volume-up-line"></i>
+          </span>
+        </span>
+        <b-col id="musicPopover" sm="11" md="10" lg="9" class="mt-2">
+          <b-form-input
+              ref="input1"
+              id="popover-input-1"
+              class="w-100 mb-2"
+              v-model="musicVideoURL"
+              size="sm"
+            ></b-form-input>
+            <!-- responsive youtube video -->
+            <div class="embed-responsive embed-responsive-16by9">
+              <iframe class="embed-responsive-item" :src="parsedMusicVideoURL()" allow='autoplay'></iframe>
+
+            </div>
+        </b-col>
+      </b-col>
+      <b-col sm="10" md="8" lg="6">
         <img class="w-100" :src="require('~/assets/images/logo.svg')" alt="Kamakura Geku Logo">
+      </b-col>
+      <b-col sm="6" md="2" lg="3">
+        <b-button
+          class="w-100 d-flex justify-content-center align-items-center font-wight-bold"
+          :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
+          @click="finishTurn">
+          Finish Turn
+          <i class="ri-arrow-right-s-line"></i>
+        </b-button>
       </b-col>
     </b-col>
     <GameBoard
@@ -10,6 +42,9 @@
       :thisUserIndex="thisUserIndex"
       :tileSize="tileSize"
     />
+    <b-col cols="12" class="my-3 text-center">
+      <p class="text-light">「最大の勝利は戦いをすることなくするものである」</p>
+    </b-col>
   </b-col>
 </template>
 
@@ -23,7 +58,11 @@ export default Vue.extend({
   name: 'Kamakura-Geku',
   data() {
     return {
-      boardSize: 234,
+      musicVideoURL: 'https://www.youtube.com/watch?v=ZxGiEoczryg?t=254',
+      musicPopover: false,
+      muted: true,
+
+      boardSize: 253,
 
       tileSize: 5, //in percentage
 
@@ -46,20 +85,6 @@ export default Vue.extend({
             score: 0,
             isTurn: false,
           },
-          {
-            id: 2,
-            name: 'Player 3',
-            color: 'purple',
-            score: 0,
-            isTurn: false,
-          },
-          {
-            id: 3,
-            name: 'Player 4',
-            color: 'yellow',
-            score: 0,
-            isTurn: false,
-          },
         ],
 
         gameBoardData: [] as any,
@@ -69,6 +94,10 @@ export default Vue.extend({
   },
   mounted() {
     this.createBoard()
+
+    // setTimeout(() => {
+    //     this.musicVideoURL = this.musicVideoURL + '&autoplay=1';
+    //   }, 1000)
   },
   methods: {
     createBoard: function() {
@@ -78,7 +107,7 @@ export default Vue.extend({
         })
 
         if (i === this.boardSize - 1) {
-          this.loadFakeData();
+          this.setupGameData();
         }
       }
     },
@@ -86,16 +115,27 @@ export default Vue.extend({
 
       console.log(JSON.stringify(this.gameData.gameBoardData[previousTileIndex]))
 
-      this.$set(this.gameData.gameBoardData, index, this.gameData.gameBoardData[previousTileIndex])
+      this.$set(this.gameData.gameBoardData, index, {
+        ...this.gameData.gameBoardData[previousTileIndex],
+        moved: true,
+      })
       this.$set(this.gameData.gameBoardData, previousTileIndex, {
         playerIndex: -1
       })
 
     },
     attackTile: function(index:number) {
-      console.log('attack space ' + index)
+
     },
-    loadFakeData: function() {
+    finishTurn: function() {
+      this.gameData.gameBoardData.forEach((tile:any) => {
+        if (tile.moved) {
+          tile.moved = false
+        }
+      })
+      this.thisUserIndex = this.thisUserIndex === 1 ? 0 : this.thisUserIndex + 1
+    },
+    setupGameData: function() {
       const newData125 = {
         playerIndex: 0,
         value: 2,
@@ -131,11 +171,18 @@ export default Vue.extend({
         value: 1,
       }
       this.$set(this.gameData.gameBoardData, 124, newData124)
-    }
+    },
+    parsedMusicVideoURL: function() {
+      return this.musicVideoURL.replace('watch?v=', 'embed/')
+    },
+    stopMusic: function() {
+      this.musicVideoURL = this.musicVideoURL.replace('&autoplay=1', '')
+    },
   },
   computed: {
 
   }
 
 })
+
 </script>
