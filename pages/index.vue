@@ -1,11 +1,16 @@
 <template>
-  <b-col id="mainContainer">
+  <b-col id="mainContainer" class="pt-3">
+    <b-col id="alertContainer" cols="12" class="d-flex justify-content-center">
+      <b-alert class="d-inline-block font-weight-bold m-2" :class="notification.animation" :show="notification.show" :variant="notification.type">{{ notification.message }}</b-alert>
+    </b-col>
+
+
     <b-col cols="12" class="d-flex justify-content-center align-items-center">
-      <b-col sm="6" md="2" lg="3" class="posRel">
+      <b-col sm="6" md="2" lg="3" class="posRel d-flex align-items-center">
         <span id="musicPopoverButton" class="p-3">
           <span
             @click="stopMusic()"
-            class="mb-0 d-inline-flex bg-red musicButton cursorPointer"
+            class="mb-0 mr-3 d-inline-flex bg-red musicButton cursorPointer"
             ><i class="h3 mb-0 ri-volume-up-line"></i>
           </span>
         </span>
@@ -28,15 +33,29 @@
             <!-- responsive youtube video -->
             <div class="embed-responsive embed-responsive-16by9">
               <iframe class="embed-responsive-item" :src="parsedMusicVideoURL()" allow='autoplay'></iframe>
-
             </div>
         </b-col>
+
+        <h5 class="mb-0 px-3 d-flex align-items-center font-weight-bold" :class="'text-' + gameData.players[thisUserIndex].color">
+          <i class="ri-account-circle-line pr-1"></i>
+          {{ gameData.players[thisUserIndex].name }}'s Turn
+        </h5>
       </b-col>
       <b-col sm="10" md="8" lg="6">
         <img class="w-100" :src="require('~/assets/images/logo.svg')" alt="Kamakura Geku Logo">
       </b-col>
       <b-col sm="6" md="2" lg="3" class="d-flex justify-content-end">
         <b-button
+          v-if="placeUnits"
+          class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
+          :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
+          :disabled="!completeUnitPlacement"
+          @click="thisUserIndex < gameData.players.length -1 ? thisUserIndex + 1 : [playGame = true, placeUnits = false, thisUserIndex = 0 ]">
+          Finish Placement
+          <i class="ri-arrow-right-s-line"></i>
+        </b-button>
+        <b-button
+          v-if="playGame"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
           :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
           @click="finishTurn">
@@ -50,6 +69,9 @@
       :thisUserIndex="thisUserIndex"
       :tileSize="tileSize"
       :tileHeight="tileHeight"
+      :startingPieces="startingPieces"
+      :playGame="playGame"
+      :placeUnits="placeUnits"
     />
     <b-col cols="12" class="my-3 text-center">
       <p class="text-light">「最大の勝利は戦いをすることなくするものである」</p>
@@ -72,25 +94,31 @@ export default Vue.extend({
       muted: true,
 
       boardSize: 390,
-
       tileSize: 5, //in percentage
       tileHeight: 0, //in pixels
 
       thisUserIndex: 0,
+
+      placeUnits: true,
+      playGame: false,
+
+      startingPieces: [10, 10, 10, 10, 10] as any,
+
+
 
       gameData: {
 
         players: [
           {
             id: 0,
-            name: 'Player 1',
+            name: 'Blue',
             color: 'blue',
             score: 0,
             isTurn: true,
           },
           {
             id: 1,
-            name: 'Player 2',
+            name: 'Red',
             color: 'red',
             score: 0,
             isTurn: false,
@@ -98,8 +126,15 @@ export default Vue.extend({
         ],
 
         gameBoardData: [] as any,
+
       },
 
+      notification: {
+          show: false,
+          message: '',
+          type: '',
+          animation: 'slide-in-top',
+        } as any
     }
   },
   mounted() {
@@ -120,10 +155,6 @@ export default Vue.extend({
         this.gameData.gameBoardData.push({
           playerIndex: -1,
         })
-
-        if (i === this.boardSize - 1) {
-          this.setupGameData();
-        }
       }
     },
     resizeBoard: function() {
@@ -160,7 +191,7 @@ export default Vue.extend({
       })
       this.thisUserIndex = this.thisUserIndex === 1 ? 0 : this.thisUserIndex + 1
     },
-    setupGameData: function() {
+    defaultGameData: function() {
 
       let player1Tiles = [
         {tileIndex: 3, playerIndex: 1, value: 5},
@@ -343,8 +374,38 @@ export default Vue.extend({
         this.musicVideoURL = this.musicVideoURL + '?autoplay=1';
       }, 1000)
     },
-  },
+    createNotification(message:any, type:any) {
+      this.notification.message = message;
+      this.notification.type = type;
+      this.notification.show = true;
 
+      setTimeout(() => {
+        this.notification.animation = 'slide-out-top';
+
+        setTimeout(() => {
+          this.notification.show = false;
+
+          setTimeout(() => {
+            this.notification.animation = 'slide-in-top';
+          }, 1000)
+        }, 1000)
+      }, 5000)
+    }
+  },
+  computed: {
+    completeUnitPlacement: function() {
+      //nextTick
+      let complete = true
+
+      this.startingPieces.forEach((piece: any, index: number) => {
+        if (piece > 0) {
+          complete = false
+        }
+      })
+
+      return complete
+    },
+  }
 })
 
 </script>

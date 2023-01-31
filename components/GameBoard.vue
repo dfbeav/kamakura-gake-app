@@ -1,55 +1,140 @@
 <template>
   <div id="gameBoard" class="p-3">
-    <div class="d-flex flex-wrap">
-      <div
-        v-for="(tile, index ) in gameData.gameBoardData" :key="index"
-        :id="'tile_' + index"
-        class="tile"
-        :class="[
-          index % 39 === 0 ? 'tile_offset' : '',
-          selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'cursorPointer' : '',
-          selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo  ? 'cursorPointer' : '',
-          selectionPossibilities[index] != undefined && !selectionPossibilities[index].canBeAttacked && !selectionPossibilities[index].canMoveTo ? 'cursorNotAllowed' : '',
-          ]"
-        :style="'width:' + tileSize + '%; height:' + tileHeight + 'px'"
-        @click="tile.moved ? '' : selectOrMove(index)"
-        >
-          <h1 class="mb-0">
-              <i
-                v-if="tile.playerIndex > -1"
-                class="playerIcon"
-                :class="[
-                  gamePieces[tile.value - 1].icon,
-                  'text-' + gameData.players[tile.playerIndex].color,
-                  tile.moved ? 'moved' : ''
-                  ]"
-                >
-              </i>
-          </h1>
-          <p
-            v-if="tile.playerIndex > -1"
-            class="pieceValue"
-            :class="[
-              'text-' + gameData.players[tile.playerIndex].color,
-              tile.moved ? 'moved' : ''
-              ]"
+    <b-col
+      id="multipFunctionalBar"
+      v-if="placeUnits"
+      class="d-inline-flex position-sticky mb-3 border-curved"
+      >
+      <div class="p-2 d-flex justify-content-center flex-wrap text-white w-100">
+        <b-col cols="12" class="text-center">
+          <h6>Place {{ gameData.players[thisUserIndex].name }} Units</h6>
+        </b-col>
+        <div
+          class="px-5 border-secondary"
+          v-for="(piece, index) in gamePieces" :key="index"
+          :class="index === gamePieces.length - 1 ? '' : 'border-right'"
+          @click="selectedPieceType = index"
+          >
+          <span
+            class="d-flex align-items-center py-1 px-3 border border-pill cursorPointer"
+            :class="selectedPieceType === index ? 'border-primary' : 'border-dark'"
             >
-              {{ tile.value }}
-            </p>
-            <!-- "Hove here" icon -->
-          <i
-            v-if="selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo"
-            class="moveHereIcon ri-arrow-up-s-line"
-            :class="selectionPossibilities[index].directionFromSelectedTile"></i>
-          <div
-            class="hexagon hex1"
-            :class="[
-              selectedTile === index ? 'selected' : '',
-              selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'canBeAttacked' : ''
-              ]"
-            ></div>
+            <i
+              class="h3 mb-0"
+              :class="[
+                gamePieces[piece.value - 1].icon,
+                'text-' + gameData.players[thisUserIndex].color,
+                ]"
+              >
+              </i>
+            <h5 class="mb-1">
+              <b-badge
+                pill
+                variant="primary"
+                class="ml-2"
+                >
+                {{ startingPieces[index] }}
+              </b-badge>
+            </h5>
+
+          </span>
+        </div>
       </div>
-    </div>
+    </b-col>
+    <b-col cols="12" class="d-inline-flex flex-wrap">'
+      <template v-if="placeUnits">
+        <div
+          v-for="(tile, index ) in gameData.gameBoardData" :key="index"
+          :id="'tile_' + index"
+          class="tile"
+          :class="[
+            index % 39 === 0 ? 'tile_offset' : '',
+            selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'cursorPointer' : '',
+            selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo  ? 'cursorPointer' : '',
+            selectionPossibilities[index] != undefined && !selectionPossibilities[index].canBeAttacked && !selectionPossibilities[index].canMoveTo ? 'cursorNotAllowed' : '',
+            ]"
+          :style="'width:' + tileSize + '%; height:' + tileHeight + 'px'"
+          @click="addToThisTile(index)"
+          >
+            <h1 class="mb-0">
+                <i
+                  v-if="tile.playerIndex > -1"
+                  class="playerIcon"
+                  :class="[
+                    gamePieces[tile.value - 1] ? gamePieces[tile.value - 1].icon : '',
+                    'text-' + gameData.players[tile.playerIndex].color,
+                    tile.moved ? 'moved' : ''
+                    ]"
+                  >
+                </i>
+            </h1>
+            <p
+              v-if="tile.playerIndex > -1"
+              class="pieceValue"
+              :class="[
+                'text-' + gameData.players[tile.playerIndex].color,
+                tile.moved ? 'moved' : ''
+                ]"
+              >
+                {{ tile.value }}
+              </p>
+            <div
+              class="hexagon hex1"
+              ></div>
+        </div>
+      </template>
+
+      <template v-if="playGame">
+        <div
+          v-for="(tile, index ) in gameData.gameBoardData" :key="index"
+          :id="'tile_' + index"
+          class="tile"
+          :class="[
+            index % 39 === 0 ? 'tile_offset' : '',
+            selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'cursorPointer' : '',
+            selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo  ? 'cursorPointer' : '',
+            selectionPossibilities[index] != undefined && !selectionPossibilities[index].canBeAttacked && !selectionPossibilities[index].canMoveTo ? 'cursorNotAllowed' : '',
+            ]"
+          :style="'width:' + tileSize + '%; height:' + tileHeight + 'px'"
+          @click="tile.moved ? '' : selectOrMove(index)"
+          >
+            <h1 class="mb-0">
+                <i
+                  v-if="tile.playerIndex > -1"
+                  class="playerIcon"
+                  :class="[
+                    gamePieces[tile.value - 1] ? gamePieces[tile.value - 1].icon : '',
+                    'text-' + gameData.players[tile.playerIndex].color,
+                    tile.moved ? 'moved' : ''
+                    ]"
+                  >
+                </i>
+            </h1>
+            <p
+              v-if="tile.playerIndex > -1"
+              class="pieceValue"
+              :class="[
+                'text-' + gameData.players[tile.playerIndex].color,
+                tile.moved ? 'moved' : ''
+                ]"
+              >
+                {{ tile.value }}
+              </p>
+              <!-- "Hove here" icon -->
+            <i
+              v-if="selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo"
+              class="moveHereIcon ri-arrow-up-s-line"
+              :class="selectionPossibilities[index].directionFromSelectedTile"></i>
+            <div
+              class="hexagon hex1"
+              :class="[
+                selectedTile === index ? 'selected' : '',
+                selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'canBeAttacked' : ''
+                ]"
+              ></div>
+        </div>
+      </template>
+    </b-col>
   </div>
 </template>
 
@@ -59,10 +144,14 @@ import Vue from 'vue'
 
 export default Vue.extend({
   name: 'gameBoard',
-  props: ['tileSize', 'tileHeight', 'thisUserIndex', 'gameData'],
+  props: ['placeUnits', 'playGame', 'startingPieces', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData'],
   data() {
     return {
-      selectedTile: -1 as any,
+
+
+      selectedPieceType: 0 as number,
+
+      selectedTile: -1 as number,
 
       surroundingTiles: [] as any,
 
@@ -89,7 +178,9 @@ export default Vue.extend({
           value: 5,
           icon: 'ri-vip-crown-fill',
         }
-      ]
+      ],
+
+
     }
   },
   mounted() {
@@ -145,6 +236,37 @@ export default Vue.extend({
         }
       })
     },
+    addToThisTile(index:number) {
+      if (this.gameData.gameBoardData[index].playerIndex === -1 && !(this.$parent as any).completeUnitPlacement) {
+        //If the tile is empty, add the selected piece to it
+        this.gameData.gameBoardData[index].playerIndex = this.thisUserIndex
+        this.gameData.gameBoardData[index].value = this.selectedPieceType + 1;
+
+        //remove the piece from the player's starting pieces
+        (this.$parent as any).startingPieces[this.selectedPieceType] = (this.$parent as any).startingPieces[this.selectedPieceType] - 1
+
+        //if the player has no more pieces of this type left to place, select the next piece type
+        if ( (this.$parent as any).startingPieces[this.selectedPieceType] === 0) {
+          this.selectedPieceType = this.selectedPieceType + 1
+        }
+
+      } else if (this.gameData.gameBoardData[index].playerIndex === this.thisUserIndex) {
+        //if the tile is owned by the player, remove the piece from it
+        let thisTileOriginalValue = this.gameData.gameBoardData[index].value
+
+        this.gameData.gameBoardData[index].playerIndex = -1
+        this.gameData.gameBoardData[index].value = 0;
+
+        (this.$parent as any).startingPieces[thisTileOriginalValue - 1] = (this.$parent as any).startingPieces[thisTileOriginalValue - 1] + 1
+        this.selectedPieceType = thisTileOriginalValue -1
+
+      } else if ((this.$parent as any).completeUnitPlacement) {
+        (this.$parent as any).createNotification(`You have no more pieces left to place`, 'danger')
+      } else {
+        //notify the player that they can't place a piece on an enemy tile
+        (this.$parent as any).createNotification(`You can't place a piece on an enemy tile`, 'danger')
+      }
+    },
     checkCanBeAttacked: function(index:number): any {
 
       if (this.gameData.gameBoardData[this.selectedTile].playerIndex > -1) {
@@ -178,6 +300,9 @@ export default Vue.extend({
       if (this.gameData.gameBoardData[index].playerIndex === this.thisUserIndex) {
         //If player owns this tile, select it
         this.selectedTile = index
+      } else if (this.gameData.gameBoardData[index].playerIndex != this.thisUserIndex && this.selectedTile === -1 && this.gameData.gameBoardData[index].playerIndex > -1) {
+        //User clicks on an enemy tile when no tile is selected
+        (this.$parent as any).createNotification(`It is ` + this.gameData.players[this.thisUserIndex].name + `'s turn`, 'info')
       } else  {
         //Check if the player can move to this tile
         if (this.selectionPossibilities[index] != undefined && this.selectionPossibilities[index].canMoveTo) {
@@ -246,6 +371,7 @@ export default Vue.extend({
     },
   },
   computed: {
+
   }
 
 })
