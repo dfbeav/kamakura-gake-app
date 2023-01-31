@@ -49,7 +49,7 @@
           v-if="placeUnits"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
           :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
-          :disabled="!completeUnitPlacement"
+          :disabled="!completeUnitPlacement()"
           @click="thisUserIndex < gameData.players.length -1 ? thisUserIndex + 1 : [playGame = true, placeUnits = false, thisUserIndex = 0 ]">
           Finish Placement
           <i class="ri-arrow-right-s-line"></i>
@@ -390,9 +390,7 @@ export default Vue.extend({
           }, 1000)
         }, 1000)
       }, 5000)
-    }
-  },
-  computed: {
+    },
     completeUnitPlacement: function() {
       //nextTick
       let complete = true
@@ -405,6 +403,9 @@ export default Vue.extend({
 
       return complete
     },
+  },
+  computed: {
+
   }
 })
 

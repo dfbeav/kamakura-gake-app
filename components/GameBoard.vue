@@ -237,7 +237,7 @@ export default Vue.extend({
       })
     },
     addToThisTile(index:number) {
-      if (this.gameData.gameBoardData[index].playerIndex === -1 && !(this.$parent as any).completeUnitPlacement) {
+      if (this.gameData.gameBoardData[index].playerIndex === -1 && !(this.$parent as any).completeUnitPlacement()) {
         //If the tile is empty, add the selected piece to it
         this.gameData.gameBoardData[index].playerIndex = this.thisUserIndex
         this.gameData.gameBoardData[index].value = this.selectedPieceType + 1;
@@ -260,7 +260,7 @@ export default Vue.extend({
         (this.$parent as any).startingPieces[thisTileOriginalValue - 1] = (this.$parent as any).startingPieces[thisTileOriginalValue - 1] + 1
         this.selectedPieceType = thisTileOriginalValue -1
 
-      } else if ((this.$parent as any).completeUnitPlacement) {
+      } else if ((this.$parent as any).completeUnitPlacement()) {
         (this.$parent as any).createNotification(`You have no more pieces left to place`, 'danger')
       } else {
         //notify the player that they can't place a piece on an enemy tile
