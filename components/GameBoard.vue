@@ -253,13 +253,16 @@ export default Vue.extend({
         //if the tile is owned by the player, remove the piece from it
         let thisTileOriginalValue = this.gameData.gameBoardData[index].value
 
+        //remove the piece from the tile
         this.gameData.gameBoardData[index].playerIndex = -1
         this.gameData.gameBoardData[index].value = 0;
 
+        //add the piece back to the player's starting pieces
         (this.$parent as any).startingPieces[thisTileOriginalValue - 1] = (this.$parent as any).startingPieces[thisTileOriginalValue - 1] + 1
-        this.$store.commit('setSelectedPieceType', {selectedPieceType: this.selectedPieceType - 1})
 
-        this.$store.commit('completedUnitPlacement', {completedUnitPlacement: true})
+        this.$store.commit('setSelectedPieceType', {selectedPieceType: thisTileOriginalValue - 1})
+
+        this.$store.commit('setCompletedUnitPlacement', {completedUnitPlacement: false})
 
       } else if (this.completedUnitPlacement) {
         (this.$parent as any).createNotification(`You have no more pieces left to place`, 'danger')
