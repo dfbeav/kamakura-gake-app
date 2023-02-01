@@ -13,9 +13,11 @@
           class="px-5 border-secondary"
           v-for="(piece, index) in gamePieces" :key="index"
           :class="index === gamePieces.length - 1 ? '' : 'border-right'"
-          @click="selectedPieceType = index"
+          @click="$store.commit('setSelectedPieceType', {selectedPieceType: index})"
           >
           <span
+            :data-type="selectedPieceType"
+            :data-index="index"
             class="d-flex align-items-center py-1 px-3 border border-pill cursorPointer"
             :class="selectedPieceType === index ? 'border-primary' : 'border-dark'"
             >
@@ -30,7 +32,7 @@
             <h5 class="mb-1">
               <b-badge
                 pill
-                variant="primary"
+                :class="'bg-' + gameData.players[thisUserIndex].color"
                 class="ml-2"
                 >
                 {{ startingPieces[index] }}
@@ -144,12 +146,9 @@ import Vue from 'vue'
 
 export default Vue.extend({
   name: 'gameBoard',
-  props: ['placeUnits', 'playGame', 'startingPieces', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData'],
+  props: ['placeUnits', 'playGame', 'startingPieces', 'completedUnitPlacement', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData'],
   data() {
     return {
-
-
-      selectedPieceType: 0 as number,
 
       selectedTile: -1 as number,
 
@@ -237,17 +236,17 @@ export default Vue.extend({
       })
     },
     addToThisTile(index:number) {
-      if (this.gameData.gameBoardData[index].playerIndex === -1 && !(this.$parent as any).completeUnitPlacement()) {
+      if (this.gameData.gameBoardData[index].playerIndex === -1 && !this.completedUnitPlacement) {
         //If the tile is empty, add the selected piece to it
         this.gameData.gameBoardData[index].playerIndex = this.thisUserIndex
         this.gameData.gameBoardData[index].value = this.selectedPieceType + 1;
 
         //remove the piece from the player's starting pieces
-        (this.$parent as any).startingPieces[this.selectedPieceType] = (this.$parent as any).startingPieces[this.selectedPieceType] - 1
+        this.$set((this.$parent as any).startingPieces, this.selectedPieceType, (this.$parent as any).startingPieces[this.selectedPieceType] - 1)
 
         //if the player has no more pieces of this type left to place, select the next piece type
         if ( (this.$parent as any).startingPieces[this.selectedPieceType] === 0) {
-          this.selectedPieceType = this.selectedPieceType + 1
+          this.$store.commit('setSelectedPieceType', {selectedPieceType: this.selectedPieceType + 1})
         }
 
       } else if (this.gameData.gameBoardData[index].playerIndex === this.thisUserIndex) {
@@ -258,9 +257,9 @@ export default Vue.extend({
         this.gameData.gameBoardData[index].value = 0;
 
         (this.$parent as any).startingPieces[thisTileOriginalValue - 1] = (this.$parent as any).startingPieces[thisTileOriginalValue - 1] + 1
-        this.selectedPieceType = thisTileOriginalValue -1
+        this.$store.commit('setSelectedPieceType', {selectedPieceType: this.selectedPieceType - 1})
 
-      } else if ((this.$parent as any).completeUnitPlacement()) {
+      } else if (this.completedUnitPlacement) {
         (this.$parent as any).createNotification(`You have no more pieces left to place`, 'danger')
       } else {
         //notify the player that they can't place a piece on an enemy tile
@@ -371,7 +370,9 @@ export default Vue.extend({
     },
   },
   computed: {
-
+    selectedPieceType () {
+      return this.$store.state.selectedPieceType
+    }
   }
 
 })

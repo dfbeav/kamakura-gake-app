@@ -46,12 +46,21 @@
       </b-col>
       <b-col sm="6" md="2" lg="3" class="d-flex justify-content-end">
         <b-button
-          v-if="placeUnits"
+          v-if="placeUnits && thisUserIndex < gameData.players.length - 1"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
           :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
-          :disabled="!completeUnitPlacement()"
-          @click="thisUserIndex < gameData.players.length -1 ? thisUserIndex + 1 : [playGame = true, placeUnits = false, thisUserIndex = 0 ]">
+          :disabled="!completedUnitPlacement"
+          @click="thisUserIndex++; $store.commit('setSelectedPieceType', {selectedPieceType: 0}); startingPieces = startingPiecesReset">
           Finish Placement
+          <i class="ri-arrow-right-s-line"></i>
+        </b-button>
+        <b-button
+          v-if="placeUnits && thisUserIndex === gameData.players.length - 1"
+          class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
+          :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
+          :disabled="!completedUnitPlacement"
+          @click="playGame = true; placeUnits = false; thisUserIndex = 0">
+          Start Game
           <i class="ri-arrow-right-s-line"></i>
         </b-button>
         <b-button
@@ -72,6 +81,7 @@
       :startingPieces="startingPieces"
       :playGame="playGame"
       :placeUnits="placeUnits"
+      :completedUnitPlacement="completedUnitPlacement"
     />
     <b-col cols="12" class="my-3 text-center">
       <p class="text-light">「最大の勝利は戦いをすることなくするものである」</p>
@@ -102,7 +112,11 @@ export default Vue.extend({
       placeUnits: true,
       playGame: false,
 
-      startingPieces: [10, 10, 10, 10, 10] as any,
+      startingPieces: [1, 1, 1, 1, 1] as any,
+      startingPiecesReset: [1, 1, 1, 1, 1] as any,
+
+
+      completedUnitPlacement: false,
 
 
 
@@ -391,21 +405,27 @@ export default Vue.extend({
         }, 1000)
       }, 5000)
     },
-    completeUnitPlacement: function() {
-      //nextTick
-      let complete = true
-
-      this.startingPieces.forEach((piece: any, index: number) => {
-        if (piece > 0) {
-          complete = false
-        }
+  },
+  watch: {
+    startingPieces: function() {
+      let remaining = 0
+      this.startingPieces.forEach((piece: any) => {
+        remaining = remaining + piece
       })
 
-      return complete
+      console.log(remaining)
+
+      if (remaining === 0) {
+        this.completedUnitPlacement = true
+      } else {
+        this.completedUnitPlacement = false
+      }
     },
   },
   computed: {
-
+    selectedPieceType () {
+      return this.$store.state.selectedPieceType
+    }
   }
 })
 
