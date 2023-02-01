@@ -150,6 +150,14 @@ body {
   background: rgb(231, 68, 46);
 }
 
+.border-blue {
+  border-color: rgb(46, 148, 231)!important;
+}
+
+.border-red {
+  border-color: rgb(231, 68, 46)!important;
+}
+
 .moveHereIcon {
   color: rgb(46, 148, 231);
   border-radius: 50%;

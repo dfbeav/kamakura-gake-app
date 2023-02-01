@@ -4,7 +4,6 @@
       <b-alert class="d-inline-block font-weight-bold m-2" :class="notification.animation" :show="notification.show" :variant="notification.type">{{ notification.message }}</b-alert>
     </b-col>
 
-
     <b-col cols="12" class="d-flex justify-content-center align-items-center">
       <b-col sm="6" md="2" lg="3" class="posRel d-flex align-items-center">
         <span id="musicPopoverButton" class="p-3">
@@ -73,6 +72,39 @@
         </b-button>
       </b-col>
     </b-col>
+
+
+    <!-- Start Selection -->
+    <b-col
+      cols="12"
+      v-if="!placeUnits && !playGame"
+      id="positionSelectionModal"
+      class="my-5"
+      >
+      <b-col cols="12" class="text-center">
+        <h5 class="text-light">Select Unit Placement or Start with Default</h5>
+      </b-col>
+      <b-col cols="12" class="d-flex justify-content-center my-5">
+        <b-button
+          class="pl-3 mx-1 d-inline-flex justify-content-center align-items-center font-weight-bold"
+          variant="outline-primary"
+          @click="startPlaceUnits();"
+          >
+          Place Units
+          <i class="ri-arrow-right-s-line"></i>
+        </b-button>
+        <b-button
+          class="pl-3 mx-1 d-inline-flex justify-content-center align-items-center font-weight-bold"
+          variant="outline-danger"
+          @click="defaultGameData()"
+          >
+          Default Start
+          <i class="ri-arrow-right-s-line"></i>
+        </b-button>
+      </b-col>
+    </b-col>
+
+
     <GameBoard
       :gameData="gameData"
       :thisUserIndex="thisUserIndex"
@@ -81,11 +113,18 @@
       :startingPieces="startingPieces"
       :playGame="playGame"
       :placeUnits="placeUnits"
-      :completedUnitPlacement="completedUnitPlacement"
     />
-    <b-col cols="12" class="my-3 text-center">
+
+
+    <b-col
+      cols="12"
+      class="my-3 text-center"
+      v-if="placeUnits || playGame"
+      >
       <p class="text-light">「最大の勝利は戦いをすることなくするものである」</p>
     </b-col>
+
+
   </b-col>
 </template>
 
@@ -109,15 +148,11 @@ export default Vue.extend({
 
       thisUserIndex: 0,
 
-      placeUnits: true,
-      playGame: false,
+      placeUnits: false as boolean,
+      playGame: false as boolean,
 
-      startingPieces: [1, 1, 1, 1, 1] as any,
-      startingPiecesReset: [1, 1, 1, 1, 1] as any,
-
-
-      completedUnitPlacement: false,
-
+      startingPieces: [12, 12, 12, 12, 12] as any,
+      startingPiecesReset: [12, 12, 12, 12, 12] as any,
 
 
       gameData: {
@@ -194,9 +229,6 @@ export default Vue.extend({
       })
 
     },
-    attackTile: function(index:number) {
-
-    },
     finishTurn: function() {
       this.gameData.gameBoardData.forEach((tile:any) => {
         if (tile.moved) {
@@ -205,7 +237,17 @@ export default Vue.extend({
       })
       this.thisUserIndex = this.thisUserIndex === 1 ? 0 : this.thisUserIndex + 1
     },
+    startPlaceUnits: function() {
+      this.placeUnits = true;
+      this.$store.commit('setSelectedPieceType', {selectedPieceType: 0});
+
+      this.$nextTick(() => {
+        this.setTileHeight()
+      })
+    },
     defaultGameData: function() {
+
+      this.playGame = true;
 
       let player1Tiles = [
         {tileIndex: 3, playerIndex: 1, value: 5},
@@ -371,7 +413,6 @@ export default Vue.extend({
         })
       })
 
-      //Next tick
       this.$nextTick(() => {
         this.setTileHeight()
       })
@@ -416,16 +457,19 @@ export default Vue.extend({
       console.log(remaining)
 
       if (remaining === 0) {
-        this.completedUnitPlacement = true
+        this.$store.commit('setCompletedUnitPlacement', {completedUnitPlacement: true})
       } else {
-        this.completedUnitPlacement = false
+        this.$store.commit('setCompletedUnitPlacement', {completedUnitPlacement: false})
       }
     },
   },
   computed: {
     selectedPieceType () {
       return this.$store.state.selectedPieceType
-    }
+    },
+    completedUnitPlacement () {
+      return this.$store.state.completedUnitPlacement
+    },
   }
 })
 

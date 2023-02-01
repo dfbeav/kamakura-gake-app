@@ -19,7 +19,7 @@
             :data-type="selectedPieceType"
             :data-index="index"
             class="d-flex align-items-center py-1 px-3 border border-pill cursorPointer"
-            :class="selectedPieceType === index ? 'border-primary' : 'border-dark'"
+            :class="selectedPieceType === index ? 'border-' + gameData.players[thisUserIndex].color : 'border-dark'"
             >
             <i
               class="h3 mb-0"
@@ -43,7 +43,7 @@
         </div>
       </div>
     </b-col>
-    <b-col cols="12" class="d-inline-flex flex-wrap">'
+    <b-col cols="12" class="d-inline-flex flex-wrap">
       <template v-if="placeUnits">
         <div
           v-for="(tile, index ) in gameData.gameBoardData" :key="index"
@@ -146,7 +146,7 @@ import Vue from 'vue'
 
 export default Vue.extend({
   name: 'gameBoard',
-  props: ['placeUnits', 'playGame', 'startingPieces', 'completedUnitPlacement', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData'],
+  props: ['placeUnits', 'playGame', 'startingPieces', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData'],
   data() {
     return {
 
@@ -258,6 +258,8 @@ export default Vue.extend({
 
         (this.$parent as any).startingPieces[thisTileOriginalValue - 1] = (this.$parent as any).startingPieces[thisTileOriginalValue - 1] + 1
         this.$store.commit('setSelectedPieceType', {selectedPieceType: this.selectedPieceType - 1})
+
+        this.$store.commit('completedUnitPlacement', {completedUnitPlacement: true})
 
       } else if (this.completedUnitPlacement) {
         (this.$parent as any).createNotification(`You have no more pieces left to place`, 'danger')
@@ -372,7 +374,10 @@ export default Vue.extend({
   computed: {
     selectedPieceType () {
       return this.$store.state.selectedPieceType
-    }
+    },
+    completedUnitPlacement () {
+      return this.$store.state.completedUnitPlacement
+    },
   }
 
 })
