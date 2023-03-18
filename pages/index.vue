@@ -1,5 +1,8 @@
 <template>
-  <b-col id="mainContainer" class="pt-3">
+  <b-col id="mainContainer"
+    class="pt-3"
+    :class="playGame || placeUnits ? '' : 'catfishBackground'"
+    >
     <b-col id="alertContainer" cols="12" class="d-flex justify-content-center">
       <b-alert class="d-inline-block font-weight-bold m-2" :class="notification.animation" :show="notification.show" :variant="notification.type">{{ notification.message }}</b-alert>
     </b-col>
@@ -35,7 +38,10 @@
             </div>
         </b-col>
 
-        <h5 class="mb-0 px-3 d-flex align-items-center font-weight-bold" :class="'text-' + gameData.players[thisUserIndex].color">
+        <h5
+          v-if="placeUnits || playGame"
+          class="mb-0 px-3 d-flex align-items-center font-weight-bold"
+          :class="'text-' + gameData.players[thisUserIndex].color">
           <i class="ri-account-circle-line pr-1"></i>
           {{ gameData.players[thisUserIndex].name }}'s Turn
         </h5>
@@ -47,7 +53,7 @@
         <b-button
           v-if="placeUnits && thisUserIndex < gameData.players.length - 1"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
-          :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
+          :variant="thisUserIndex === 0 ? 'primary' : 'danger'"
           :disabled="!completedUnitPlacement"
           @click="thisUserIndex++; $store.commit('setSelectedPieceType', {selectedPieceType: 0}); startingPieces = startingPiecesReset">
           Finish Placement
@@ -56,7 +62,7 @@
         <b-button
           v-if="placeUnits && thisUserIndex === gameData.players.length - 1"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
-          :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
+          :variant="thisUserIndex === 0 ? 'primary' : 'danger'"
           :disabled="!completedUnitPlacement"
           @click="playGame = true; placeUnits = false; thisUserIndex = 0">
           Start Game
@@ -65,7 +71,7 @@
         <b-button
           v-if="playGame"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
-          :variant="thisUserIndex === 0 ? 'outline-primary' : 'outline-danger'"
+          :variant="thisUserIndex === 0 ? 'primary' : 'danger'"
           @click="finishTurn">
           Finish Turn
           <i class="ri-arrow-right-s-line"></i>
@@ -75,33 +81,34 @@
 
 
     <!-- Start Selection -->
-    <b-col
-      cols="12"
-      v-if="!placeUnits && !playGame"
-      id="positionSelectionModal"
-      class="my-5"
-      >
-      <b-col cols="12" class="text-center">
-        <h5 class="text-light">Select Unit Placement or Start with Default</h5>
-      </b-col>
-      <b-col cols="12" class="d-flex justify-content-center my-5">
-        <b-button
-          class="pl-3 mx-1 d-inline-flex justify-content-center align-items-center font-weight-bold"
-          variant="outline-primary"
-          @click="startPlaceUnits();"
-          >
-          Place Units
-          <i class="ri-arrow-right-s-line"></i>
-        </b-button>
-        <b-button
-          class="pl-3 mx-1 d-inline-flex justify-content-center align-items-center font-weight-bold"
-          variant="outline-danger"
-          @click="defaultGameData()"
-          >
-          Default Start
-          <i class="ri-arrow-right-s-line"></i>
-        </b-button>
-      </b-col>
+    <b-col cols="12" class="d-flex justify-content-center align-items-center">
+      <div
+        v-if="!placeUnits && !playGame"
+        id="positionSelectionModal"
+        class="my-5 p-3 popupContainer fade-in-delayed"
+        >
+        <b-col cols="12" class="text-center text-dark">
+          <h5>Select Unit Placement or Start with Default</h5>
+        </b-col>
+        <b-col cols="12" class="d-flex justify-content-center mt-3 mb-1">
+          <b-button
+            class="pl-3 mx-1 d-inline-flex justify-content-center align-items-center font-weight-bold"
+            variant="primary"
+            @click="startPlaceUnits();"
+            >
+            Place Units
+            <i class="ri-arrow-right-s-line"></i>
+          </b-button>
+          <b-button
+            class="pl-3 mx-1 d-inline-flex justify-content-center align-items-center font-weight-bold"
+            variant="danger"
+            @click="defaultGameData()"
+            >
+            Default Start
+            <i class="ri-arrow-right-s-line"></i>
+          </b-button>
+        </b-col>
+      </div>
     </b-col>
 
 
@@ -183,8 +190,10 @@ export default Vue.extend({
           message: '',
           type: '',
           animation: 'slide-in-top',
-        } as any
+        } as any,
     }
+
+
   },
   mounted() {
     this.createBoard()
@@ -203,8 +212,71 @@ export default Vue.extend({
       for (let i = 0; i < this.boardSize; i++) {
         this.gameData.gameBoardData.push({
           playerIndex: -1,
+          edge: null,
         })
       }
+
+      //get the number of tiles in a row, double it to only get the even rows
+      let evenTilesInRows = ((100 / this.tileSize) * 2) -1;
+      //set the edges of the board
+      //every 19th tile, add a left edge
+      let evenTileCount = 0;
+      let evenTileEdge = () => {
+        this.gameData.gameBoardData[evenTileCount].edge = 'left'
+
+        if (evenTileCount !== 0) {
+          this.gameData.gameBoardData[(evenTileCount - 1)].edge = 'right'
+        }
+
+        if (evenTileCount + evenTilesInRows < this.boardSize) {
+          evenTileCount += evenTilesInRows
+          evenTileEdge();
+        }
+      }
+
+      evenTileEdge();
+
+
+      //get the number of tiles in a row, double it to only get the even rows
+      let oddTilesInRows = ((100 / this.tileSize) * 2) - 1;
+
+      console.log(oddTilesInRows)
+      //set the edges of the board
+      //every 19th tile, add a left edge
+      let oddTileCount = (100 / this.tileSize) -1;
+      let oddTileEdge = () => {
+        this.gameData.gameBoardData[oddTileCount].edge = 'left'
+
+        if (oddTileCount !== 0) {
+          this.gameData.gameBoardData[(oddTileCount - 1)].edge = 'right'
+        }
+
+        if (oddTileCount + oddTilesInRows < this.boardSize) {
+          oddTileCount += oddTilesInRows
+          oddTileEdge();
+        }
+      }
+
+      oddTileEdge();
+
+
+      // for (let i = 0; i < this.boardSize; i++) {
+      //   if (i % tilesInRow1 === 0) {
+      //     this.gameData.gameBoardData[i].edge = 'left'
+
+      //     if (i !== 0) {
+      //       this.gameData.gameBoardData[(i - 1)].edge = 'right'
+      //     }
+      //   }
+
+      //   if (i % (tilesInRow1 - (100 / this.tileSize)) === 0) {
+      //     this.gameData.gameBoardData[i].edge = 'left'
+
+      //     if (i !== 0) {
+      //       this.gameData.gameBoardData[(i - 1)].edge = 'right'
+      //     }
+      //   }
+      // }
     },
     resizeBoard: function() {
       this.setTileHeight()
@@ -223,6 +295,7 @@ export default Vue.extend({
       this.$set(this.gameData.gameBoardData, index, {
         ...this.gameData.gameBoardData[previousTileIndex],
         moved: true,
+        edge: this.gameData.gameBoardData[index].edge,
       })
       this.$set(this.gameData.gameBoardData, previousTileIndex, {
         playerIndex: -1
@@ -250,159 +323,161 @@ export default Vue.extend({
       this.playGame = true;
 
       let player1Tiles = [
-        {tileIndex: 3, playerIndex: 1, value: 5},
-        {tileIndex: 4, playerIndex: 1, value: 5},
-        {tileIndex: 5, playerIndex: 1, value: 5},
-        {tileIndex: 6, playerIndex: 1, value: 5},
-        {tileIndex: 7, playerIndex: 1, value: 5},
-        {tileIndex: 8, playerIndex: 1, value: 5},
-        {tileIndex: 9, playerIndex: 1, value: 5},
-        {tileIndex: 10, playerIndex: 1, value: 5},
-        {tileIndex: 11, playerIndex: 1, value: 5},
-        {tileIndex: 12, playerIndex: 1, value: 5},
-        {tileIndex: 13, playerIndex: 1, value: 5},
-        {tileIndex: 14, playerIndex: 1, value: 5},
-        {tileIndex: 15, playerIndex: 1, value: 5},
+        {tileIndex: 3, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 4, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 5, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 6, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 7, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 8, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 9, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 10, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 11, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 12, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 13, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 14, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 15, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
 
-        {tileIndex: 22, playerIndex: 1, value: 4},
-        {tileIndex: 23, playerIndex: 1, value: 4},
-        {tileIndex: 24, playerIndex: 1, value: 4},
-        {tileIndex: 25, playerIndex: 1, value: 4},
-        {tileIndex: 26, playerIndex: 1, value: 4},
-        {tileIndex: 27, playerIndex: 1, value: 4},
-        {tileIndex: 28, playerIndex: 1, value: 4},
-        {tileIndex: 29, playerIndex: 1, value: 4},
-        {tileIndex: 30, playerIndex: 1, value: 4},
-        {tileIndex: 31, playerIndex: 1, value: 4},
-        {tileIndex: 32, playerIndex: 1, value: 4},
-        {tileIndex: 33, playerIndex: 1, value: 4},
-        {tileIndex: 34, playerIndex: 1, value: 4},
-        {tileIndex: 35, playerIndex: 1, value: 4},
+        {tileIndex: 22, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 23, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 24, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 25, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 26, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 27, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 28, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 29, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 30, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 31, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 32, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 33, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 34, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 35, playerIndex: 1, edge: null, value: 4, movementRemaining: 1},
 
-        {tileIndex: 42, playerIndex: 1, value: 3},
-        {tileIndex: 43, playerIndex: 1, value: 3},
-        {tileIndex: 44, playerIndex: 1, value: 3},
-        {tileIndex: 45, playerIndex: 1, value: 3},
-        {tileIndex: 46, playerIndex: 1, value: 3},
-        {tileIndex: 47, playerIndex: 1, value: 3},
-        {tileIndex: 48, playerIndex: 1, value: 3},
-        {tileIndex: 49, playerIndex: 1, value: 3},
-        {tileIndex: 50, playerIndex: 1, value: 3},
-        {tileIndex: 51, playerIndex: 1, value: 3},
-        {tileIndex: 52, playerIndex: 1, value: 3},
-        {tileIndex: 53, playerIndex: 1, value: 3},
-        {tileIndex: 54, playerIndex: 1, value: 3},
+        {tileIndex: 42, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 43, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 44, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 45, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 46, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 47, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 48, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 49, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 50, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 51, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 52, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 53, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 54, playerIndex: 1, edge: null, value: 3, movementRemaining: 1},
 
-        {tileIndex: 61, playerIndex: 1, value: 2},
-        {tileIndex: 62, playerIndex: 1, value: 2},
-        {tileIndex: 63, playerIndex: 1, value: 2},
-        {tileIndex: 64, playerIndex: 1, value: 2},
-        {tileIndex: 65, playerIndex: 1, value: 2},
-        {tileIndex: 66, playerIndex: 1, value: 2},
-        {tileIndex: 67, playerIndex: 1, value: 2},
-        {tileIndex: 68, playerIndex: 1, value: 2},
-        {tileIndex: 69, playerIndex: 1, value: 2},
-        {tileIndex: 70, playerIndex: 1, value: 2},
-        {tileIndex: 71, playerIndex: 1, value: 2},
-        {tileIndex: 72, playerIndex: 1, value: 2},
-        {tileIndex: 73, playerIndex: 1, value: 2},
-        {tileIndex: 74, playerIndex: 1, value: 2},
+        {tileIndex: 61, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 62, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 63, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 64, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 65, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 66, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 67, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 68, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 69, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 70, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 71, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 72, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 73, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 74, playerIndex: 1, edge: null, value: 2, movementRemaining: 1},
 
-        {tileIndex: 81, playerIndex: 1, value: 1},
-        {tileIndex: 82, playerIndex: 1, value: 1},
-        {tileIndex: 83, playerIndex: 1, value: 1},
-        {tileIndex: 84, playerIndex: 1, value: 1},
-        {tileIndex: 85, playerIndex: 1, value: 1},
-        {tileIndex: 86, playerIndex: 1, value: 1},
-        {tileIndex: 87, playerIndex: 1, value: 1},
-        {tileIndex: 88, playerIndex: 1, value: 1},
-        {tileIndex: 89, playerIndex: 1, value: 1},
-        {tileIndex: 90, playerIndex: 1, value: 1},
-        {tileIndex: 91, playerIndex: 1, value: 1},
-        {tileIndex: 92, playerIndex: 1, value: 1},
-        {tileIndex: 93, playerIndex: 1, value: 1},
+        {tileIndex: 81, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 82, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 83, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 84, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 85, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 86, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 87, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 88, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 89, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 90, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 91, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 92, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
+        {tileIndex: 93, playerIndex: 1, edge: null, value: 1, movementRemaining: 4},
 
       ]
 
       let player2Tiles = [
-        {tileIndex: 373, playerIndex: 0, value: 5},
-        {tileIndex: 374, playerIndex: 0, value: 5},
-        {tileIndex: 375, playerIndex: 0, value: 5},
-        {tileIndex: 376, playerIndex: 0, value: 5},
-        {tileIndex: 377, playerIndex: 0, value: 5},
-        {tileIndex: 378, playerIndex: 0, value: 5},
-        {tileIndex: 379, playerIndex: 0, value: 5},
-        {tileIndex: 380, playerIndex: 0, value: 5},
-        {tileIndex: 381, playerIndex: 0, value: 5},
-        {tileIndex: 382, playerIndex: 0, value: 5},
-        {tileIndex: 383, playerIndex: 0, value: 5},
-        {tileIndex: 384, playerIndex: 0, value: 5},
-        {tileIndex: 385, playerIndex: 0, value: 5},
-        {tileIndex: 386, playerIndex: 0, value: 5},
+        {tileIndex: 373, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 374, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 375, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 376, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 377, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 378, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 379, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 380, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 381, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 382, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 383, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 384, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 385, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
+        {tileIndex: 386, playerIndex: 0, edge: null, value: 5, movementRemaining: 1},
 
-        {tileIndex: 354, playerIndex: 0, value: 4},
-        {tileIndex: 355, playerIndex: 0, value: 4},
-        {tileIndex: 356, playerIndex: 0, value: 4},
-        {tileIndex: 357, playerIndex: 0, value: 4},
-        {tileIndex: 358, playerIndex: 0, value: 4},
-        {tileIndex: 359, playerIndex: 0, value: 4},
-        {tileIndex: 360, playerIndex: 0, value: 4},
-        {tileIndex: 361, playerIndex: 0, value: 4},
-        {tileIndex: 362, playerIndex: 0, value: 4},
-        {tileIndex: 363, playerIndex: 0, value: 4},
-        {tileIndex: 364, playerIndex: 0, value: 4},
-        {tileIndex: 365, playerIndex: 0, value: 4},
-        {tileIndex: 366, playerIndex: 0, value: 4},
+        {tileIndex: 354, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 355, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 356, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 357, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 358, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 359, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 360, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 361, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 362, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 363, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 364, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 365, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
+        {tileIndex: 366, playerIndex: 0, edge: null, value: 4, movementRemaining: 1},
 
-        {tileIndex: 334, playerIndex: 0, value: 3},
-        {tileIndex: 335, playerIndex: 0, value: 3},
-        {tileIndex: 336, playerIndex: 0, value: 3},
-        {tileIndex: 337, playerIndex: 0, value: 3},
-        {tileIndex: 338, playerIndex: 0, value: 3},
-        {tileIndex: 339, playerIndex: 0, value: 3},
-        {tileIndex: 340, playerIndex: 0, value: 3},
-        {tileIndex: 341, playerIndex: 0, value: 3},
-        {tileIndex: 342, playerIndex: 0, value: 3},
-        {tileIndex: 343, playerIndex: 0, value: 3},
-        {tileIndex: 344, playerIndex: 0, value: 3},
-        {tileIndex: 345, playerIndex: 0, value: 3},
-        {tileIndex: 346, playerIndex: 0, value: 3},
-        {tileIndex: 347, playerIndex: 0, value: 3},
+        {tileIndex: 334, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 335, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 336, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 337, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 338, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 339, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 340, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 341, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 342, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 343, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 344, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 345, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 346, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
+        {tileIndex: 347, playerIndex: 0, edge: null, value: 3, movementRemaining: 1},
 
-        {tileIndex: 315, playerIndex: 0, value: 2},
-        {tileIndex: 316, playerIndex: 0, value: 2},
-        {tileIndex: 317, playerIndex: 0, value: 2},
-        {tileIndex: 318, playerIndex: 0, value: 2},
-        {tileIndex: 319, playerIndex: 0, value: 2},
-        {tileIndex: 320, playerIndex: 0, value: 2},
-        {tileIndex: 321, playerIndex: 0, value: 2},
-        {tileIndex: 322, playerIndex: 0, value: 2},
-        {tileIndex: 323, playerIndex: 0, value: 2},
-        {tileIndex: 324, playerIndex: 0, value: 2},
-        {tileIndex: 325, playerIndex: 0, value: 2},
-        {tileIndex: 326, playerIndex: 0, value: 2},
-        {tileIndex: 327, playerIndex: 0, value: 2},
+        {tileIndex: 315, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 316, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 317, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 318, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 319, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 320, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 321, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 322, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 323, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 324, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 325, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 326, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
+        {tileIndex: 327, playerIndex: 0, edge: null, value: 2, movementRemaining: 1},
 
-        {tileIndex: 295, playerIndex: 0, value: 1},
-        {tileIndex: 296, playerIndex: 0, value: 1},
-        {tileIndex: 297, playerIndex: 0, value: 1},
-        {tileIndex: 298, playerIndex: 0, value: 1},
-        {tileIndex: 299, playerIndex: 0, value: 1},
-        {tileIndex: 300, playerIndex: 0, value: 1},
-        {tileIndex: 301, playerIndex: 0, value: 1},
-        {tileIndex: 302, playerIndex: 0, value: 1},
-        {tileIndex: 303, playerIndex: 0, value: 1},
-        {tileIndex: 304, playerIndex: 0, value: 1},
-        {tileIndex: 305, playerIndex: 0, value: 1},
-        {tileIndex: 306, playerIndex: 0, value: 1},
-        {tileIndex: 307, playerIndex: 0, value: 1},
-        {tileIndex: 308, playerIndex: 0, value: 1},
+        {tileIndex: 295, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 296, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 297, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 298, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 299, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 300, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 301, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 302, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 303, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 304, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 305, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 306, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 307, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
+        {tileIndex: 308, playerIndex: 0, edge: null, value: 1, movementRemaining: 5},
       ]
 
       player1Tiles.forEach((tile:any) => {
         this.$set(this.gameData.gameBoardData, tile.tileIndex, {
           playerIndex: tile.playerIndex,
           value: tile.value,
+          movementRemaining: tile.movementRemaining,
+          edge: null,
         })
       })
 
@@ -410,6 +485,8 @@ export default Vue.extend({
         this.$set(this.gameData.gameBoardData, tile.tileIndex, {
           playerIndex: tile.playerIndex,
           value: tile.value,
+          movementRemaining: tile.movementRemaining,
+          edge: null,
         })
       })
 

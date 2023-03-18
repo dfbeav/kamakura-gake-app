@@ -1,5 +1,10 @@
 <template>
-  <div id="gameBoard" class="p-3">
+  <div
+    v-if="playGame || placeUnits"
+    id="gameBoard"
+    class="p-3"
+    >
+    <img id="gameboardBackground" src="@/assets/images/_bg_2.png" alt="catfish background" />
     <b-col
       id="multipFunctionalBar"
       v-if="placeUnits"
@@ -50,7 +55,7 @@
           :id="'tile_' + index"
           class="tile"
           :class="[
-            index % 39 === 0 ? 'tile_offset' : '',
+            index % (((100 / tileSize) * 2) -1) === 0 ? 'tile_offset' : '',
             selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'cursorPointer' : '',
             selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo  ? 'cursorPointer' : '',
             selectionPossibilities[index] != undefined && !selectionPossibilities[index].canBeAttacked && !selectionPossibilities[index].canMoveTo ? 'cursorNotAllowed' : '',
@@ -92,12 +97,13 @@
           :id="'tile_' + index"
           class="tile"
           :class="[
-            index % 39 === 0 ? 'tile_offset' : '',
+            index % (((100 / tileSize) * 2) -1) === 0 ? 'tile_offset' : '',
             selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'cursorPointer' : '',
             selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo  ? 'cursorPointer' : '',
             selectionPossibilities[index] != undefined && !selectionPossibilities[index].canBeAttacked && !selectionPossibilities[index].canMoveTo ? 'cursorNotAllowed' : '',
             ]"
           :style="'width:' + tileSize + '%; height:' + tileHeight + 'px'"
+          :data-edge="tile.edge ? tile.edge : ''"
           @click="tile.moved ? '' : selectOrMove(index)"
           >
             <h1 class="mb-0">
@@ -123,16 +129,21 @@
                 {{ tile.value }}
               </p>
               <!-- "Hove here" icon -->
-            <i
-              v-if="selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo"
-              class="moveHereIcon ri-arrow-up-s-line"
-              :class="selectionPossibilities[index].directionFromSelectedTile"></i>
             <div
-              class="hexagon hex1"
+              class="topTile hex1 bg-light"
               :class="[
                 selectedTile === index ? 'selected' : '',
-                selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'canBeAttacked' : ''
+                selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'canBeAttacked' : '',
+                selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo ? 'canMoveTo' : ''
                 ]"
+              ></div>
+            <div
+              v-if="selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo"
+              class="bottomTile hex1 bg-info"
+              ></div>
+            <div
+              v-if="selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked"
+              class="bottomTile hex1 bg-warning"
               ></div>
         </div>
       </template>
@@ -159,22 +170,27 @@ export default Vue.extend({
       gamePieces: [
         {
           value: 1,
+          movement: 4,
           icon: 'ri-user-3-fill',
         },
         {
           value: 2,
+          movement: 1,
           icon: 'ri-group-fill',
         },
         {
           value: 3,
+          movement: 1,
           icon: 'ri-team-fill',
         },
         {
           value: 4,
+          movement: 1,
           icon: 'ri-sword-fill',
         },
         {
           value: 5,
+          movement: 1,
           icon: 'ri-vip-crown-fill',
         }
       ],
@@ -240,6 +256,7 @@ export default Vue.extend({
         //If the tile is empty, add the selected piece to it
         this.gameData.gameBoardData[index].playerIndex = this.thisUserIndex
         this.gameData.gameBoardData[index].value = this.selectedPieceType + 1;
+        this.gameData.gameBoardData[index].movementRemaining = this.gamePieces[this.selectedPieceType].movement - 1
 
         //remove the piece from the player's starting pieces
         this.$set((this.$parent as any).startingPieces, this.selectedPieceType, (this.$parent as any).startingPieces[this.selectedPieceType] - 1)
@@ -321,6 +338,7 @@ export default Vue.extend({
           (this.$parent as any).moveToTile(this.selectedTile, index);
 
           this.resetSelectedTile()
+
         } else {
           //Otherwise, the player is disselecting the tile
           this.resetSelectedTile()
@@ -329,6 +347,7 @@ export default Vue.extend({
       }
     },
     findSurroundingTiles(tileIndex:number):any {
+
       let tileDistance = ( 100 / this.tileSize )
 
       let array = [
@@ -357,6 +376,38 @@ export default Vue.extend({
           direction: 'bottomRight'
         },
       ]
+
+        if (tileIndex > -1 && tileIndex === this.selectedTile) {
+          array.forEach((tile, index) => {
+            console.log(tile)
+            //Check if current tile has 'edge' parameter
+            if (this.gameData.gameBoardData[tile.surroundingTileId] != undefined) {
+              //Check if the tile is on the edge of the board
+              if (this.gameData.gameBoardData[tile.surroundingTileId].edge) {
+
+                if (this.gameData.gameBoardData[tileIndex].edge === 'right') {
+                  //If the tile is on the left edge of the board, remove it from the array
+                  if (this.gameData.gameBoardData[tile.surroundingTileId].edge === 'left') {
+                    array.splice(index, 1)
+
+                    console.log(tile.surroundingTileId + ' removed')
+                  }
+                } else if (this.gameData.gameBoardData[tileIndex].edge === 'left') {
+                  if (this.gameData.gameBoardData[tile.surroundingTileId].edge === 'right') {
+                    array.splice(index, 1)
+
+                    console.log(tile.surroundingTileId + ' removed')
+                  }
+                }
+
+              }
+            } else {
+              //If the tile is undefined, remove it from the array
+              array.splice(index, 1)
+            }
+        })
+      }
+
 
       return array
     },

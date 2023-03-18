@@ -21,9 +21,18 @@ body {
   box-shadow: 0 0 8px rgba(0,0,0,0.33);
 }
 
+.popupContainer {
+  display: inline-block;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(5px);
+  border-radius: 5px;
+  box-shadow: 0 0 30px rgb(0 0 0 / 20%);
+}
+
 #gameBoard {
-  background: black;
   min-height: 300px;
+  position: relative;
+  margin: 1em;
 }
 
 .musicButton {
@@ -64,6 +73,24 @@ body {
   max-width: 1400px;
   min-width: 1200px;
   margin: 0 auto;
+  min-height: 90vh;
+}
+
+#gameboardBackground {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0.75;
+}
+
+.catfishBackground {
+  background-image: url('~/assets/images/_bg_2.png');
+  background-size: 100%;
+  background-repeat: no-repeat;
+  background-position: center;
+  backdrop-filter: opacity(20%);
 }
 
 .posRel {
@@ -74,6 +101,9 @@ body {
   position: relative;
   margin-top: -0.45%;;
   margin-bottom: -0.45%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .tile_offset {
@@ -113,26 +143,32 @@ body {
   cursor: not-allowed;
 }
 
-.hexagon {
+.topTile {
   height: 100%;
   width: 100%;
   position: absolute;
+  z-index: 2;
+}
+
+.topTile.canMoveTo, .topTile.canBeAttacked {
+  width: 80%;
+  height: 80%;
+}
+
+.bottomTile {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  z-index: 1;
 }
 
 
 .hex1 {
-  background: white;
   -webkit-clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
   clip-path: polygon(50% 0%, 95% 25%, 95% 75%, 50% 100%, 5% 75%, 5% 25%);
 }
 
-.hex1.selected {
-  background: rgb(213, 236, 255);
-}
 
-.hex1.canBeAttacked {
-  background: rgb(255, 213, 213);
-}
 
 .text-blue {
   color: rgb(46, 148, 231);
@@ -156,51 +192,6 @@ body {
 
 .border-red {
   border-color: rgb(231, 68, 46)!important;
-}
-
-.moveHereIcon {
-  color: rgb(46, 148, 231);
-  border-radius: 50%;
-  z-index: 5;
-  position: absolute;
-  font-size: 1rem;
-  font-weight: bold;
-}
-
-.moveHereIcon.right {
-  top: 28%;
-  left: 7.5%;
-  transform: rotate(90deg);
-}
-
-.moveHereIcon.left {
-  top: 28%;
-  right: 7.5%;
-  transform: rotate(-90deg);
-}
-
-.moveHereIcon.topRight {
-  bottom: 7.5%;
-  right: 25%;
-  transform: rotate(-30deg);
-}
-
-.moveHereIcon.topLeft {
-  bottom: 7.5%;
-  left: 25%;
-  transform: rotate(30deg);
-}
-
-.moveHereIcon.bottomRight {
-  top: 7.5%;
-  left: 25%;
-  transform: rotate(145deg);
-}
-
-.moveHereIcon.bottomLeft {
-  top: 7.5%;
-  right: 25%;
-  transform: rotate(215deg);
 }
 
 #multipFunctionalBar {
@@ -234,3 +225,14 @@ body {
 
 @-webkit-keyframes slide-out-top{0%{-webkit-transform:translateY(0);transform:translateY(0);opacity:1}100%{-webkit-transform:translateY(-1000px);transform:translateY(-1000px);opacity:0}}@keyframes slide-out-top{0%{-webkit-transform:translateY(0);transform:translateY(0);opacity:1}100%{-webkit-transform:translateY(-1000px);transform:translateY(-1000px);opacity:0}}
 
+.fade-in-delayed {
+  opacity: 0;
+  animation: fadeIn 0.25s forwards;
+  animation-delay: 1s;
+}
+
+@keyframes fadeIn {
+  to {
+    opacity: 1;
+  }
+}
