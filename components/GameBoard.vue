@@ -233,9 +233,6 @@ export default Vue.extend({
         const tileData = this.gameData.gameBoardData[tileId]
         if (tileData === undefined) continue
 
-        // Skip tiles owned by this player (can't move onto own units)
-        if (tileData.playerIndex === this.thisUserIndex) continue
-
         if (tileData.playerIndex === -1) {
           // Empty tile — mark as canMoveTo
           if (!this.selectionPossibilities[tileId]) {
@@ -255,9 +252,19 @@ export default Vue.extend({
               }
             })
           }
+        } else if (tileData.playerIndex === this.thisUserIndex) {
+          // Friendly tile — can pass through but not land on
+          if (depth < maxMovement) {
+            const nextNeighbors = this.findSurroundingTiles(tileId)
+            nextNeighbors.forEach((adj: any) => {
+              if (adj.surroundingTileId > -1 && adj.surroundingTileId < boardSize && !visited[adj.surroundingTileId]) {
+                queue.push({ tileId: adj.surroundingTileId, depth: depth + 1, direction: adj.direction })
+              }
+            })
+          }
         } else {
-          // Enemy tile — check if it can be attacked (only adjacent, depth 1)
-          if (depth === 1) {
+          // Enemy tile — mark as attackable if within movement range and not already processed
+          if (!this.selectionPossibilities[tileId]) {
             // Build surroundingTiles info for attack calculation
             const adjTiles = this.findSurroundingTiles(tileId)
             let surroundingTilesInfo: any[] = []
@@ -370,6 +377,19 @@ export default Vue.extend({
         } else if (this.selectionPossibilities[index] != undefined && this.selectionPossibilities[index].canBeAttacked) {
           //Attack the tile
           (this.$parent as any).moveToTile(this.selectedTile, index);
+
+          // Mark any adjacent friendly units that contributed to a combined attack as moved (movement = 0)
+          const attackedTilePossibility = this.selectionPossibilities[index]
+          if (attackedTilePossibility.surroundingTiles) {
+            attackedTilePossibility.surroundingTiles.forEach((tile: any) => {
+              if (
+                tile.playerIndex === this.thisUserIndex &&
+                tile.surroundingTileId !== this.selectedTile
+              ) {
+                this.$set(this.gameData.gameBoardData[tile.surroundingTileId], 'moved', true)
+              }
+            })
+          }
 
           this.resetSelectedTile()
 
