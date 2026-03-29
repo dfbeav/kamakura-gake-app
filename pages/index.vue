@@ -40,10 +40,10 @@
 
         <h5
           v-if="placeUnits || playGame"
-          class="mb-0 px-3 d-flex align-items-center font-weight-bold"
+          class="mb-0 px-3 font-weight-bold"
           :class="'text-' + gameData.players[thisUserIndex].color">
-          <i :class="aiEnabled && thisUserIndex === 1 ? 'ri-robot-line pr-1' : 'ri-account-circle-line pr-1'"></i>
-          {{ aiEnabled && thisUserIndex === 1 ? 'AI' : gameData.players[thisUserIndex].name }}'s Turn
+          <i :class="(aiEnabled && thisUserIndex === 1) || aiBothEnabled ? 'ri-robot-line pr-1' : 'ri-account-circle-line pr-1'"></i>
+          {{ aiBothEnabled ? 'AI (' + gameData.players[thisUserIndex].name + ')' : (aiEnabled && thisUserIndex === 1 ? 'AI' : gameData.players[thisUserIndex].name) }}'s Turn
           <span v-if="aiThinking" class="ml-2 text-warning"><small>(thinking...)</small></span>
         </h5>
       </b-col>
@@ -86,16 +86,53 @@
       <div
         v-if="!placeUnits && !playGame"
         id="positionSelectionModal"
-        class="my-5 p-3 popupContainer fade-in-delayed"
+        class="my-5 p-4 popupContainer fade-in-delayed"
         >
-        <b-col cols="12" class="text-center text-dark">
-          <h5>Select Unit Placement or Start with Default</h5>
+        <b-col cols="12" class="text-center text-dark mb-3">
+          <h5 class="mb-0">New Game</h5>
         </b-col>
-        <b-col cols="12" class="d-flex justify-content-center my-2">
-          <b-form-checkbox v-model="aiEnabled" switch class="font-weight-bold">
-            Play against AI
-          </b-form-checkbox>
+
+        <!-- Win Condition Dropdown -->
+        <b-col cols="12" class="mb-3">
+          <p class="modal-field-label">Win Condition</p>
+          <custom-dropdown
+            v-model="winCondition"
+            :options="winConditionOptions"
+          />
         </b-col>
+
+        <!-- Game Mode selection -->
+        <b-col cols="12" class="mb-3">
+          <p class="modal-field-label">Game Mode</p>
+          <div class="ai-options-row">
+            <div
+              class="ai-option-toggle"
+              :class="{ 'is-active': gameMode === 'pvp' }"
+              @click="gameMode = 'pvp'"
+            >
+              <i class="ri-group-line ai-option-icon"></i>
+              <span class="ai-option-label text-center">Player vs Player</span>
+            </div>
+            <div
+              class="ai-option-toggle"
+              :class="{ 'is-active': gameMode === 'vsAI' }"
+              @click="gameMode = 'vsAI'"
+            >
+              <i class="ri-robot-line ai-option-icon"></i>
+              <span class="ai-option-label">vs AI</span>
+            </div>
+            <div
+              class="ai-option-toggle"
+              :class="{ 'is-active': gameMode === 'aiVsAI' }"
+              @click="gameMode = 'aiVsAI'"
+            >
+              <i class="ri-cpu-line ai-option-icon"></i>
+              <span class="ai-option-label">AI vs AI</span>
+            </div>
+          </div>
+        </b-col>
+
+        <!-- Action Buttons -->
         <b-col cols="12" class="d-flex justify-content-center mt-3 mb-1">
           <b-button
             class="pl-3 mx-1 d-inline-flex justify-content-center align-items-center font-weight-bold"
@@ -117,6 +154,22 @@
       </div>
     </b-col>
 
+
+    <!-- Win Overlay -->
+    <div v-if="gameOver" class="win-overlay">
+      <div class="win-modal p-5 text-center">
+        <h2 :class="'text-' + gameData.players[winnerIndex].color" class="font-weight-bold mb-2">
+          {{ gameData.players[winnerIndex].name }} Wins!
+        </h2>
+        <p class="text-white mb-4">
+          <span v-if="winCondition === 'eliminate'">All enemy units were eliminated.</span>
+          <span v-else-if="winCondition === 'breakthrough'">A unit crossed the entire board!</span>
+        </p>
+        <b-button variant="light" class="font-weight-bold" @click="resetGame()">
+          Play Again <i class="ri-refresh-line"></i>
+        </b-button>
+      </div>
+    </div>
 
     <GameBoard
       :gameData="gameData"
@@ -144,12 +197,14 @@
 
 <script lang="ts">
 import Vue from 'vue'
+import CustomDropdown from '~/components/CustomDropdown.vue'
 
 import 'remixicon/fonts/remixicon.css'
 
 
 export default Vue.extend({
   name: 'Kamakura-Geku',
+  components: { CustomDropdown },
   data() {
     return {
       musicVideoURL: 'https://www.youtube.com/watch?v=ZxGiEoczryg?t=254',
@@ -168,8 +223,16 @@ export default Vue.extend({
       startingPieces: [12, 12, 12, 12, 12] as any,
       startingPiecesReset: [12, 12, 12, 12, 12] as any,
 
-      aiEnabled: false as boolean,
+      gameMode: 'pvp' as string,
       aiThinking: false as boolean,
+
+      winCondition: 'eliminate' as string,
+      winConditionOptions: [
+        { label: 'Eliminate All Enemies', value: 'eliminate' },
+        { label: 'Get a Unit Across the Board', value: 'breakthrough' },
+      ],
+      gameOver: false as boolean,
+      winnerIndex: -1 as number,
 
       gamePieces: [
         { value: 1, movement: 6 },
@@ -306,9 +369,43 @@ export default Vue.extend({
         this.tileHeight = firstTile.clientWidth
       }
     },
+    playSound: function(type: string) {
+      try {
+        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext
+        if (!AudioCtxClass) return
+        const ctx = new AudioCtxClass()
+        const playTone = (freq: number, start: number, duration: number, vol: number = 0.3) => {
+          const osc = ctx.createOscillator()
+          const gain = ctx.createGain()
+          osc.connect(gain)
+          gain.connect(ctx.destination)
+          osc.frequency.value = freq
+          gain.gain.setValueAtTime(vol, ctx.currentTime + start)
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration)
+          osc.start(ctx.currentTime + start)
+          osc.stop(ctx.currentTime + start + duration)
+        }
+        if (type === 'start') {
+          playTone(330, 0, 0.12)
+          playTone(440, 0.13, 0.12)
+          playTone(550, 0.26, 0.2)
+        } else if (type === 'capture') {
+          playTone(220, 0, 0.05, 0.4)
+          playTone(140, 0.05, 0.18, 0.3)
+        } else if (type === 'win') {
+          playTone(440, 0, 0.12)
+          playTone(550, 0.13, 0.12)
+          playTone(660, 0.26, 0.12)
+          playTone(880, 0.39, 0.4)
+        }
+      } catch (e) {}
+    },
     moveToTile: function(previousTileIndex:number, index:number):any {
 
       console.log(JSON.stringify(this.gameData.gameBoardData[previousTileIndex]))
+
+      const movingPlayerIndex = this.gameData.gameBoardData[previousTileIndex].playerIndex
+      const isCapture = this.gameData.gameBoardData[index].playerIndex > -1
 
       this.$set(this.gameData.gameBoardData, index, {
         ...this.gameData.gameBoardData[previousTileIndex],
@@ -319,8 +416,54 @@ export default Vue.extend({
         playerIndex: -1
       })
 
+      if (isCapture) this.playSound('capture')
+      this.checkWinCondition(movingPlayerIndex, index)
+    },
+    checkWinCondition: function(movingPlayerIndex:number, movedToIndex:number) {
+      if (this.gameOver) return
+
+      if (this.winCondition === 'eliminate') {
+        const enemyExists = this.gameData.gameBoardData.some((tile:any) =>
+          tile.playerIndex > -1 && tile.playerIndex !== movingPlayerIndex
+        )
+        if (!enemyExists) {
+          this.gameOver = true
+          this.winnerIndex = movingPlayerIndex
+          this.playSound('win')
+        }
+      } else if (this.winCondition === 'breakthrough') {
+        const tileDistance = Math.round(100 / this.tileSize)
+        let won = false
+        // Player 0 (Blue) starts at bottom, wins by reaching the top rows
+        if (movingPlayerIndex === 0 && movedToIndex < tileDistance) {
+          won = true
+        }
+        // Player 1 (Red) starts at top, wins by reaching the bottom rows
+        if (movingPlayerIndex === 1 && movedToIndex >= this.boardSize - tileDistance) {
+          won = true
+        }
+        if (won) {
+          this.gameOver = true
+          this.winnerIndex = movingPlayerIndex
+          this.playSound('win')
+        }
+      }
+    },
+    resetGame: function() {
+      this.gameOver = false
+      this.winnerIndex = -1
+      this.playGame = false
+      this.placeUnits = false
+      this.thisUserIndex = 0
+      this.aiThinking = false
+      this.startingPieces = [...this.startingPiecesReset]
+      this.$store.commit('setSelectedPieceType', {selectedPieceType: 0})
+      this.$store.commit('setCompletedUnitPlacement', {completedUnitPlacement: false})
+      this.gameData.gameBoardData = []
+      this.createBoard()
     },
     finishTurn: function() {
+      if (this.gameOver) return
       this.gameData.gameBoardData.forEach((tile:any) => {
         if (tile.moved) {
           tile.moved = false
@@ -329,9 +472,13 @@ export default Vue.extend({
       this.thisUserIndex = this.thisUserIndex === 1 ? 0 : this.thisUserIndex + 1
 
       // Trigger AI turn if enabled and it's AI's turn (player 1)
-      if (this.aiEnabled && this.thisUserIndex === 1) {
+      if (this.aiBothEnabled) {
         this.$nextTick(() => {
-          this.aiTurn()
+          this.aiTurn(this.thisUserIndex)
+        })
+      } else if (this.aiEnabled && this.thisUserIndex === 1) {
+        this.$nextTick(() => {
+          this.aiTurn(1)
         })
       }
     },
@@ -342,6 +489,55 @@ export default Vue.extend({
       this.playGame = true
       this.placeUnits = false
       this.thisUserIndex = 0
+      this.playSound('start')
+      if (this.aiBothEnabled) {
+        this.$nextTick(() => {
+          this.aiTurn(0)
+        })
+      }
+    },
+    aiPlaceUnitsPlayer0: function() {
+      const aiTiles:any[] = [
+        // Value 5 (front line)
+        {tileIndex: 373, value: 5}, {tileIndex: 374, value: 5}, {tileIndex: 375, value: 5},
+        {tileIndex: 376, value: 5}, {tileIndex: 377, value: 5}, {tileIndex: 378, value: 5},
+        {tileIndex: 379, value: 5}, {tileIndex: 380, value: 5}, {tileIndex: 381, value: 5},
+        {tileIndex: 382, value: 5}, {tileIndex: 383, value: 5}, {tileIndex: 384, value: 5},
+        {tileIndex: 385, value: 5},
+        // Value 4
+        {tileIndex: 354, value: 4}, {tileIndex: 355, value: 4}, {tileIndex: 356, value: 4},
+        {tileIndex: 357, value: 4}, {tileIndex: 358, value: 4}, {tileIndex: 359, value: 4},
+        {tileIndex: 360, value: 4}, {tileIndex: 361, value: 4}, {tileIndex: 362, value: 4},
+        {tileIndex: 363, value: 4}, {tileIndex: 364, value: 4}, {tileIndex: 365, value: 4},
+        {tileIndex: 366, value: 4},
+        // Value 3
+        {tileIndex: 334, value: 3}, {tileIndex: 335, value: 3}, {tileIndex: 336, value: 3},
+        {tileIndex: 337, value: 3}, {tileIndex: 338, value: 3}, {tileIndex: 339, value: 3},
+        {tileIndex: 340, value: 3}, {tileIndex: 341, value: 3}, {tileIndex: 342, value: 3},
+        {tileIndex: 343, value: 3}, {tileIndex: 344, value: 3}, {tileIndex: 345, value: 3},
+        {tileIndex: 346, value: 3},
+        // Value 2
+        {tileIndex: 315, value: 2}, {tileIndex: 316, value: 2}, {tileIndex: 317, value: 2},
+        {tileIndex: 318, value: 2}, {tileIndex: 319, value: 2}, {tileIndex: 320, value: 2},
+        {tileIndex: 321, value: 2}, {tileIndex: 322, value: 2}, {tileIndex: 323, value: 2},
+        {tileIndex: 324, value: 2}, {tileIndex: 325, value: 2}, {tileIndex: 326, value: 2},
+        {tileIndex: 327, value: 2},
+        // Value 1 (scouts)
+        {tileIndex: 295, value: 1}, {tileIndex: 296, value: 1}, {tileIndex: 297, value: 1},
+        {tileIndex: 298, value: 1}, {tileIndex: 299, value: 1}, {tileIndex: 300, value: 1},
+        {tileIndex: 301, value: 1}, {tileIndex: 302, value: 1}, {tileIndex: 303, value: 1},
+        {tileIndex: 304, value: 1}, {tileIndex: 305, value: 1}, {tileIndex: 306, value: 1},
+        {tileIndex: 307, value: 1},
+      ]
+
+      aiTiles.forEach((tile:any) => {
+        this.$set(this.gameData.gameBoardData, tile.tileIndex, {
+          playerIndex: 0,
+          value: tile.value,
+          movementRemaining: this.gamePieces[tile.value - 1].movement - 1,
+          edge: this.gameData.gameBoardData[tile.tileIndex].edge,
+        })
+      })
     },
     aiPlaceUnits: function() {
       const aiTiles:any[] = [
@@ -386,20 +582,25 @@ export default Vue.extend({
         })
       })
     },
-    aiTurn: function() {
+    aiTurn: function(playerIndex: number = 1) {
       this.aiThinking = true
 
       let moveCount = 0
-      const maxMoves = 5
+      const maxMoves = this.gameData.gameBoardData.filter((tile: any) => tile.playerIndex === playerIndex && !tile.moved).length
 
       const makeOneMove = () => {
+        if (this.gameOver) {
+          this.aiThinking = false
+          return
+        }
+
         if (moveCount >= maxMoves) {
           this.aiThinking = false
           this.finishTurn()
           return
         }
 
-        const bestMove = this.findBestAIMove()
+        const bestMove = this.findBestAIMove(playerIndex)
         if (!bestMove) {
           this.aiThinking = false
           this.finishTurn()
@@ -413,8 +614,7 @@ export default Vue.extend({
 
       setTimeout(makeOneMove, 800)
     },
-    findBestAIMove: function():any {
-      const aiPlayerIndex = 1
+    findBestAIMove: function(aiPlayerIndex: number = 1):any {
       let allMoves:any[] = []
 
       this.gameData.gameBoardData.forEach((tile:any, index:number) => {
@@ -429,8 +629,8 @@ export default Vue.extend({
             const targetValue = this.gameData.gameBoardData[p.tileId].value
             score = 1000 + targetValue * 100
           } else {
-            // Prefer advancing toward the enemy (higher tile indices)
-            const indexDiff = p.tileId - index
+            // Player 1 (Red) advances toward higher indices; Player 0 (Blue) toward lower
+            const indexDiff = aiPlayerIndex === 0 ? index - p.tileId : p.tileId - index
             if (indexDiff > 0) {
               score = 100 + indexDiff
             } else {
@@ -531,36 +731,106 @@ export default Vue.extend({
       return targetValue <= selectedValue + adjacentCombinations
     },
     findSurroundingTilesAI: function(tileIndex:number):any[] {
-      const tileDistance = (100 / this.tileSize)
+      const offsetRowSize = (100 / this.tileSize) - 1   // 19
+      const normalRowSize = 100 / this.tileSize          // 20
+      const tilesPerPair = offsetRowSize + normalRowSize  // 39
       const boardSize = this.gameData.gameBoardData.length
 
-      let array:any[] = [
-        { surroundingTileId: tileIndex - 1, direction: 'left' },
-        { surroundingTileId: tileIndex + 1, direction: 'right' },
-        { surroundingTileId: tileIndex - (tileDistance - 1), direction: 'topLeft' },
-        { surroundingTileId: tileIndex - tileDistance, direction: 'topRight' },
-        { surroundingTileId: tileIndex + (tileDistance - 1), direction: 'bottomLeft' },
-        { surroundingTileId: tileIndex + tileDistance, direction: 'bottomRight' },
-      ]
+      const pairIndex = Math.floor(tileIndex / tilesPerPair)
+      const posInPair = tileIndex % tilesPerPair
 
-      // Filter out invalid tiles and handle edge wrapping
-      array = array.filter((tile:any) => {
-        if (tile.surroundingTileId < 0 || tile.surroundingTileId >= boardSize) return false
+      let row: number, col: number, isOffsetRow: boolean
+      if (posInPair < offsetRowSize) {
+        row = pairIndex * 2
+        col = posInPair
+        isOffsetRow = true
+      } else {
+        row = pairIndex * 2 + 1
+        col = posInPair - offsetRowSize
+        isOffsetRow = false
+      }
 
-        const tileData = this.gameData.gameBoardData[tile.surroundingTileId]
-        const currentTileData = this.gameData.gameBoardData[tileIndex]
+      const getRowSize = (r: number): number => r % 2 === 0 ? offsetRowSize : normalRowSize
 
-        if (tileData && tileData.edge && currentTileData && currentTileData.edge) {
-          if (currentTileData.edge === 'right' && tileData.edge === 'left') return false
-          if (currentTileData.edge === 'left' && tileData.edge === 'right') return false
+      const fullPairs = Math.floor(boardSize / tilesPerPair)
+      const remaining = boardSize % tilesPerPair
+      let totalRows = fullPairs * 2
+      if (remaining > 0) totalRows++
+      if (remaining > offsetRowSize) totalRows++
+
+      const toIndex = (r: number, c: number): number => {
+        const rPair = Math.floor(r / 2)
+        if (r % 2 === 0) {
+          return rPair * tilesPerPair + c
+        } else {
+          return rPair * tilesPerPair + offsetRowSize + c
         }
+      }
 
-        return true
-      })
+      let array: any[] = []
+      const currentRowSize = getRowSize(row)
+
+      if (col > 0) {
+        array.push({ surroundingTileId: toIndex(row, col - 1), direction: 'left' })
+      }
+      if (col < currentRowSize - 1) {
+        array.push({ surroundingTileId: toIndex(row, col + 1), direction: 'right' })
+      }
+
+      if (isOffsetRow) {
+        if (row > 0) {
+          const aboveSize = getRowSize(row - 1)
+          if (col + 1 < aboveSize) {
+            array.push({ surroundingTileId: toIndex(row - 1, col + 1), direction: 'topLeft' })
+          }
+          if (col >= 0 && col < aboveSize) {
+            array.push({ surroundingTileId: toIndex(row - 1, col), direction: 'topRight' })
+          }
+        }
+        if (row + 1 < totalRows) {
+          const belowSize = getRowSize(row + 1)
+          if (col < belowSize) {
+            array.push({ surroundingTileId: toIndex(row + 1, col), direction: 'bottomLeft' })
+          }
+          if (col + 1 < belowSize) {
+            array.push({ surroundingTileId: toIndex(row + 1, col + 1), direction: 'bottomRight' })
+          }
+        }
+      } else {
+        if (row > 0) {
+          const aboveSize = getRowSize(row - 1)
+          if (col < aboveSize) {
+            array.push({ surroundingTileId: toIndex(row - 1, col), direction: 'topLeft' })
+          }
+          if (col - 1 >= 0 && col - 1 < aboveSize) {
+            array.push({ surroundingTileId: toIndex(row - 1, col - 1), direction: 'topRight' })
+          }
+        }
+        if (row + 1 < totalRows) {
+          const belowSize = getRowSize(row + 1)
+          if (col - 1 >= 0 && col - 1 < belowSize) {
+            array.push({ surroundingTileId: toIndex(row + 1, col - 1), direction: 'bottomLeft' })
+          }
+          if (col < belowSize) {
+            array.push({ surroundingTileId: toIndex(row + 1, col), direction: 'bottomRight' })
+          }
+        }
+      }
 
       return array
     },
     startPlaceUnits: function() {
+      if (this.aiBothEnabled) {
+        this.aiPlaceUnitsPlayer0()
+        this.aiPlaceUnits()
+        this.playGame = true
+        this.thisUserIndex = 0
+        this.$nextTick(() => {
+          this.setTileHeight()
+          this.aiTurn(0)
+        })
+        return
+      }
       this.placeUnits = true;
       this.$store.commit('setSelectedPieceType', {selectedPieceType: 0});
 
@@ -571,6 +841,7 @@ export default Vue.extend({
     defaultGameData: function() {
 
       this.playGame = true;
+      this.playSound('start')
 
       let player1Tiles = [
         {tileIndex: 3, playerIndex: 1, edge: null, value: 5, movementRemaining: 1},
@@ -742,6 +1013,9 @@ export default Vue.extend({
 
       this.$nextTick(() => {
         this.setTileHeight()
+        if (this.aiBothEnabled) {
+          this.aiTurn(0)
+        }
       })
 
     },
@@ -797,7 +1071,71 @@ export default Vue.extend({
     completedUnitPlacement () {
       return this.$store.state.completedUnitPlacement
     },
+    aiEnabled (): boolean {
+      return this.gameMode === 'vsAI'
+    },
+    aiBothEnabled (): boolean {
+      return this.gameMode === 'aiVsAI'
+    },
   }
 })
 
 </script>
+
+<style scoped>
+#positionSelectionModal {
+  min-width: 300px;
+}
+
+.modal-field-label {
+  font-weight: 600;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #6c757d;
+  margin-bottom: 6px;
+}
+
+.ai-options-row {
+  display: flex;
+  gap: 10px;
+}
+
+.ai-option-toggle {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 8px;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fff;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+
+.ai-option-toggle:hover {
+  border-color: #adb5bd;
+  background: #f8f9fa;
+}
+
+.ai-option-toggle.is-active {
+  border-color: #495057;
+  background: #e9ecef;
+  box-shadow: 0 0 0 3px rgba(73, 80, 87, 0.12);
+}
+
+.ai-option-icon {
+  font-size: 1.4rem;
+  color: #495057;
+}
+
+.ai-option-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #333;
+}
+</style>

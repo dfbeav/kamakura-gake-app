@@ -48,6 +48,27 @@
         </div>
       </div>
     </b-col>
+    <b-col
+      v-if="playGame"
+      id="balanceOfPowerBar"
+      cols="12"
+      class="position-sticky mb-3 px-3 mb-6"
+      >
+      <div class="d-flex justify-content-between mb-1" style="font-size: 0.75rem;">
+        <span class="bg-white rounded-lg py-1 px-2" :class="'text-' + gameData.players[0].color">{{ gameData.players[0].name }}: {{ unitCounts[0] }}</span>
+        <span class="text-white opacity-75">Balance of Power</span>
+        <span class="bg-white rounded-lg py-1 px-2" :class="'text-' + gameData.players[gameData.players.length - 1].color">{{ gameData.players[gameData.players.length - 1].name }}: {{ unitCounts[gameData.players.length - 1] }}</span>
+      </div>
+      <div class="d-flex w-100 border rounded-lg" style="height: 18px; overflow: hidden;">
+        <div
+          v-for="(player, i) in gameData.players"
+          :key="i"
+          :class="'bg-' + player.color"
+          :style="{ width: totalUnitsOnBoard > 0 ? (unitCounts[i] / totalUnitsOnBoard * 100) + '%' : (100 / gameData.players.length) + '%', transition: 'width 0.5s ease' }"
+          ></div>
+      </div>
+    </b-col>
+
     <b-col cols="12" class="d-inline-flex flex-wrap">
       <template v-if="placeUnits">
         <div
@@ -333,18 +354,27 @@ export default Vue.extend({
 
       if (this.gameData.gameBoardData[this.selectedTile].playerIndex > -1) {
 
+        const selectedValue = this.gameData.gameBoardData[this.selectedTile].value
+        const targetValue = this.gameData.gameBoardData[index].value
+
+        // If the selected unit is strong enough on its own, no help needed
+        if (selectedValue >= targetValue) {
+          this.$set(this.selectionPossibilities[index], 'requiresHelp', false)
+          return true
+        }
+
         let adjacentTileCombinations:number = 0;
 
         //Add up the value of the surrounding friendly units, they can be used in attacks
         this.selectionPossibilities[index].surroundingTiles.forEach((tile: any) => {
           if (tile.playerIndex === this.thisUserIndex && tile.surroundingTileId != this.selectedTile) {
             adjacentTileCombinations = adjacentTileCombinations + tile.value
-            console.log()
           }
         })
 
-        //Check if the player can attack this tile (is it's value less than or equal to this adjacent tile?)
-        if (this.gameData.gameBoardData[index].value <= this.gameData.gameBoardData[this.selectedTile].value + adjacentTileCombinations) {
+        //Check if combined strength is enough
+        if (targetValue <= selectedValue + adjacentTileCombinations) {
+          this.$set(this.selectionPossibilities[index], 'requiresHelp', true)
           return true
         } else {
           return false
@@ -381,9 +411,9 @@ export default Vue.extend({
           //Attack the tile
           (this.$parent as any).moveToTile(this.selectedTile, index);
 
-          // Mark any adjacent friendly units that contributed to a combined attack as moved (movement = 0)
+          // Only exhaust adjacent helpers if the attack actually required their support
           const attackedTilePossibility = this.selectionPossibilities[index]
-          if (attackedTilePossibility.surroundingTiles) {
+          if (attackedTilePossibility.requiresHelp && attackedTilePossibility.surroundingTiles) {
             attackedTilePossibility.surroundingTiles.forEach((tile: any) => {
               if (
                 tile.playerIndex === this.thisUserIndex &&
@@ -404,69 +434,99 @@ export default Vue.extend({
       }
     },
     findSurroundingTiles(tileIndex:number):any {
+      const offsetRowSize = (100 / this.tileSize) - 1   // 19
+      const normalRowSize = 100 / this.tileSize          // 20
+      const tilesPerPair = offsetRowSize + normalRowSize  // 39
+      const boardSize = this.gameData.gameBoardData.length
 
-      let tileDistance = ( 100 / this.tileSize )
+      // Determine row and column for a given tile index
+      const pairIndex = Math.floor(tileIndex / tilesPerPair)
+      const posInPair = tileIndex % tilesPerPair
 
-      let array = [
-        {
-          surroundingTileId: tileIndex - 1,
-          direction: 'left'
-        },
-        {
-          surroundingTileId: tileIndex + 1,
-          direction: 'right'
-        },
-        {
-          surroundingTileId: tileIndex - (tileDistance - 1 ),
-          direction: 'topLeft'
-        }, //top left
-        {
-          surroundingTileId: tileIndex - (tileDistance),
-          direction: 'topRight'
-        }, //top right
-        {
-          surroundingTileId: tileIndex + (tileDistance - 1),
-          direction: 'bottomLeft'
-        },  //bottom left
-        {
-          surroundingTileId: tileIndex + (tileDistance),
-          direction: 'bottomRight'
-        },
-      ]
-
-        if (tileIndex > -1 && tileIndex === this.selectedTile) {
-          array.forEach((tile, index) => {
-            console.log(tile)
-            //Check if current tile has 'edge' parameter
-            if (this.gameData.gameBoardData[tile.surroundingTileId] != undefined) {
-              //Check if the tile is on the edge of the board
-              if (this.gameData.gameBoardData[tile.surroundingTileId].edge) {
-
-                if (this.gameData.gameBoardData[tileIndex].edge === 'right') {
-                  //If the tile is on the left edge of the board, remove it from the array
-                  if (this.gameData.gameBoardData[tile.surroundingTileId].edge === 'left') {
-                    array.splice(index, 1)
-
-                    console.log(tile.surroundingTileId + ' removed')
-                  }
-                } else if (this.gameData.gameBoardData[tileIndex].edge === 'left') {
-                  if (this.gameData.gameBoardData[tile.surroundingTileId].edge === 'right') {
-                    array.splice(index, 1)
-
-                    console.log(tile.surroundingTileId + ' removed')
-                  }
-                }
-
-              }
-            } else {
-              //If the tile is undefined, remove it from the array
-              array.splice(index, 1)
-            }
-        })
+      let row: number, col: number, isOffsetRow: boolean
+      if (posInPair < offsetRowSize) {
+        row = pairIndex * 2
+        col = posInPair
+        isOffsetRow = true
+      } else {
+        row = pairIndex * 2 + 1
+        col = posInPair - offsetRowSize
+        isOffsetRow = false
       }
 
+      const getRowSize = (r: number): number => r % 2 === 0 ? offsetRowSize : normalRowSize
 
-      return array
+      // Calculate total rows based on board size
+      const fullPairs = Math.floor(boardSize / tilesPerPair)
+      const remaining = boardSize % tilesPerPair
+      let totalRows = fullPairs * 2
+      if (remaining > 0) totalRows++
+      if (remaining > offsetRowSize) totalRows++
+
+      const toIndex = (r: number, c: number): number => {
+        const rPair = Math.floor(r / 2)
+        if (r % 2 === 0) {
+          return rPair * tilesPerPair + c
+        } else {
+          return rPair * tilesPerPair + offsetRowSize + c
+        }
+      }
+
+      let neighbors: any[] = []
+      const currentRowSize = getRowSize(row)
+
+      // Left
+      if (col > 0) {
+        neighbors.push({ surroundingTileId: toIndex(row, col - 1), direction: 'left' })
+      }
+      // Right
+      if (col < currentRowSize - 1) {
+        neighbors.push({ surroundingTileId: toIndex(row, col + 1), direction: 'right' })
+      }
+
+      if (isOffsetRow) {
+        // Offset row neighbors
+        if (row > 0) {
+          const aboveSize = getRowSize(row - 1)
+          if (col + 1 < aboveSize) {
+            neighbors.push({ surroundingTileId: toIndex(row - 1, col + 1), direction: 'topLeft' })
+          }
+          if (col >= 0 && col < aboveSize) {
+            neighbors.push({ surroundingTileId: toIndex(row - 1, col), direction: 'topRight' })
+          }
+        }
+        if (row + 1 < totalRows) {
+          const belowSize = getRowSize(row + 1)
+          if (col < belowSize) {
+            neighbors.push({ surroundingTileId: toIndex(row + 1, col), direction: 'bottomLeft' })
+          }
+          if (col + 1 < belowSize) {
+            neighbors.push({ surroundingTileId: toIndex(row + 1, col + 1), direction: 'bottomRight' })
+          }
+        }
+      } else {
+        // Non-offset row neighbors
+        if (row > 0) {
+          const aboveSize = getRowSize(row - 1)
+          if (col < aboveSize) {
+            neighbors.push({ surroundingTileId: toIndex(row - 1, col), direction: 'topLeft' })
+          }
+          if (col - 1 >= 0 && col - 1 < aboveSize) {
+            neighbors.push({ surroundingTileId: toIndex(row - 1, col - 1), direction: 'topRight' })
+          }
+        }
+        if (row + 1 < totalRows) {
+          const belowSize = getRowSize(row + 1)
+          if (col - 1 >= 0 && col - 1 < belowSize) {
+            neighbors.push({ surroundingTileId: toIndex(row + 1, col - 1), direction: 'bottomLeft' })
+          }
+          if (col < belowSize) {
+            neighbors.push({ surroundingTileId: toIndex(row + 1, col), direction: 'bottomRight' })
+          }
+        }
+      }
+
+      return neighbors
     },
 
   },
@@ -488,6 +548,21 @@ export default Vue.extend({
     },
     completedUnitPlacement () {
       return this.$store.state.completedUnitPlacement
+    },
+    unitCounts (): Record<number, number> {
+      const counts: Record<number, number> = {}
+      this.gameData.players.forEach((_: any, i: number) => {
+        counts[i] = 0
+      })
+      this.gameData.gameBoardData.forEach((tile: any) => {
+        if (tile.playerIndex > -1) {
+          counts[tile.playerIndex] = (counts[tile.playerIndex] || 0) + 1
+        }
+      })
+      return counts
+    },
+    totalUnitsOnBoard (): number {
+      return (Object.values(this.unitCounts) as number[]).reduce((sum, count) => sum + count, 0)
     },
   }
 
