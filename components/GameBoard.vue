@@ -157,7 +157,7 @@ import Vue from 'vue'
 
 export default Vue.extend({
   name: 'gameBoard',
-  props: ['placeUnits', 'playGame', 'startingPieces', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData'],
+  props: ['placeUnits', 'playGame', 'startingPieces', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData', 'aiThinking'],
   data() {
     return {
 
@@ -358,6 +358,9 @@ export default Vue.extend({
       this.selectedTile = -1;
     },
     selectOrMove: function(index:number) {
+      //Block interaction during AI turn
+      if (this.aiThinking) return
+
       //Select a tile if the player owns this tile
       if (this.gameData.gameBoardData[index].playerIndex === this.thisUserIndex) {
         //If player owns this tile, select it

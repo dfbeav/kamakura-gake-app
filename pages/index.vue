@@ -42,8 +42,9 @@
           v-if="placeUnits || playGame"
           class="mb-0 px-3 d-flex align-items-center font-weight-bold"
           :class="'text-' + gameData.players[thisUserIndex].color">
-          <i class="ri-account-circle-line pr-1"></i>
-          {{ gameData.players[thisUserIndex].name }}'s Turn
+          <i :class="aiEnabled && thisUserIndex === 1 ? 'ri-robot-line pr-1' : 'ri-account-circle-line pr-1'"></i>
+          {{ aiEnabled && thisUserIndex === 1 ? 'AI' : gameData.players[thisUserIndex].name }}'s Turn
+          <span v-if="aiThinking" class="ml-2 text-warning"><small>(thinking...)</small></span>
         </h5>
       </b-col>
       <b-col sm="10" md="8" lg="6">
@@ -51,7 +52,7 @@
       </b-col>
       <b-col sm="6" md="2" lg="3" class="d-flex justify-content-end">
         <b-button
-          v-if="placeUnits && thisUserIndex < gameData.players.length - 1"
+          v-if="placeUnits && !aiEnabled && thisUserIndex < gameData.players.length - 1"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
           :variant="thisUserIndex === 0 ? 'primary' : 'danger'"
           :disabled="!completedUnitPlacement"
@@ -60,16 +61,16 @@
           <i class="ri-arrow-right-s-line"></i>
         </b-button>
         <b-button
-          v-if="placeUnits && thisUserIndex === gameData.players.length - 1"
+          v-if="placeUnits && ((!aiEnabled && thisUserIndex === gameData.players.length - 1) || (aiEnabled && thisUserIndex === 0))"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
           :variant="thisUserIndex === 0 ? 'primary' : 'danger'"
           :disabled="!completedUnitPlacement"
-          @click="playGame = true; placeUnits = false; thisUserIndex = 0">
+          @click="startGameFromPlacement()">
           Start Game
           <i class="ri-arrow-right-s-line"></i>
         </b-button>
         <b-button
-          v-if="playGame"
+          v-if="playGame && !aiThinking"
           class="pl-3 d-inline-flex justify-content-center align-items-center font-weight-bold"
           :variant="thisUserIndex === 0 ? 'primary' : 'danger'"
           @click="finishTurn">
@@ -89,6 +90,11 @@
         >
         <b-col cols="12" class="text-center text-dark">
           <h5>Select Unit Placement or Start with Default</h5>
+        </b-col>
+        <b-col cols="12" class="d-flex justify-content-center my-2">
+          <b-form-checkbox v-model="aiEnabled" switch class="font-weight-bold">
+            Play against AI
+          </b-form-checkbox>
         </b-col>
         <b-col cols="12" class="d-flex justify-content-center mt-3 mb-1">
           <b-button
@@ -120,6 +126,7 @@
       :startingPieces="startingPieces"
       :playGame="playGame"
       :placeUnits="placeUnits"
+      :aiThinking="aiThinking"
     />
 
 
@@ -160,6 +167,17 @@ export default Vue.extend({
 
       startingPieces: [12, 12, 12, 12, 12] as any,
       startingPiecesReset: [12, 12, 12, 12, 12] as any,
+
+      aiEnabled: false as boolean,
+      aiThinking: false as boolean,
+
+      gamePieces: [
+        { value: 1, movement: 6 },
+        { value: 2, movement: 5 },
+        { value: 3, movement: 4 },
+        { value: 4, movement: 3 },
+        { value: 5, movement: 2 },
+      ],
 
 
       gameData: {
@@ -309,6 +327,238 @@ export default Vue.extend({
         }
       })
       this.thisUserIndex = this.thisUserIndex === 1 ? 0 : this.thisUserIndex + 1
+
+      // Trigger AI turn if enabled and it's AI's turn (player 1)
+      if (this.aiEnabled && this.thisUserIndex === 1) {
+        this.$nextTick(() => {
+          this.aiTurn()
+        })
+      }
+    },
+    startGameFromPlacement: function() {
+      if (this.aiEnabled) {
+        this.aiPlaceUnits()
+      }
+      this.playGame = true
+      this.placeUnits = false
+      this.thisUserIndex = 0
+    },
+    aiPlaceUnits: function() {
+      const aiTiles:any[] = [
+        // Value 5 (front line)
+        {tileIndex: 3, value: 5}, {tileIndex: 4, value: 5}, {tileIndex: 5, value: 5},
+        {tileIndex: 6, value: 5}, {tileIndex: 7, value: 5}, {tileIndex: 8, value: 5},
+        {tileIndex: 9, value: 5}, {tileIndex: 10, value: 5}, {tileIndex: 11, value: 5},
+        {tileIndex: 12, value: 5}, {tileIndex: 13, value: 5}, {tileIndex: 14, value: 5},
+        {tileIndex: 15, value: 5},
+        // Value 4
+        {tileIndex: 22, value: 4}, {tileIndex: 23, value: 4}, {tileIndex: 24, value: 4},
+        {tileIndex: 25, value: 4}, {tileIndex: 26, value: 4}, {tileIndex: 27, value: 4},
+        {tileIndex: 28, value: 4}, {tileIndex: 29, value: 4}, {tileIndex: 30, value: 4},
+        {tileIndex: 31, value: 4}, {tileIndex: 32, value: 4}, {tileIndex: 33, value: 4},
+        {tileIndex: 34, value: 4}, {tileIndex: 35, value: 4},
+        // Value 3
+        {tileIndex: 42, value: 3}, {tileIndex: 43, value: 3}, {tileIndex: 44, value: 3},
+        {tileIndex: 45, value: 3}, {tileIndex: 46, value: 3}, {tileIndex: 47, value: 3},
+        {tileIndex: 48, value: 3}, {tileIndex: 49, value: 3}, {tileIndex: 50, value: 3},
+        {tileIndex: 51, value: 3}, {tileIndex: 52, value: 3}, {tileIndex: 53, value: 3},
+        {tileIndex: 54, value: 3},
+        // Value 2
+        {tileIndex: 61, value: 2}, {tileIndex: 62, value: 2}, {tileIndex: 63, value: 2},
+        {tileIndex: 64, value: 2}, {tileIndex: 65, value: 2}, {tileIndex: 66, value: 2},
+        {tileIndex: 67, value: 2}, {tileIndex: 68, value: 2}, {tileIndex: 69, value: 2},
+        {tileIndex: 70, value: 2}, {tileIndex: 71, value: 2}, {tileIndex: 72, value: 2},
+        {tileIndex: 73, value: 2}, {tileIndex: 74, value: 2},
+        // Value 1 (scouts)
+        {tileIndex: 81, value: 1}, {tileIndex: 82, value: 1}, {tileIndex: 83, value: 1},
+        {tileIndex: 84, value: 1}, {tileIndex: 85, value: 1}, {tileIndex: 86, value: 1},
+        {tileIndex: 87, value: 1}, {tileIndex: 88, value: 1}, {tileIndex: 89, value: 1},
+        {tileIndex: 90, value: 1}, {tileIndex: 91, value: 1}, {tileIndex: 92, value: 1},
+        {tileIndex: 93, value: 1},
+      ]
+
+      aiTiles.forEach((tile:any) => {
+        this.$set(this.gameData.gameBoardData, tile.tileIndex, {
+          playerIndex: 1,
+          value: tile.value,
+          movementRemaining: this.gamePieces[tile.value - 1].movement - 1,
+          edge: this.gameData.gameBoardData[tile.tileIndex].edge,
+        })
+      })
+    },
+    aiTurn: function() {
+      this.aiThinking = true
+
+      let moveCount = 0
+      const maxMoves = 5
+
+      const makeOneMove = () => {
+        if (moveCount >= maxMoves) {
+          this.aiThinking = false
+          this.finishTurn()
+          return
+        }
+
+        const bestMove = this.findBestAIMove()
+        if (!bestMove) {
+          this.aiThinking = false
+          this.finishTurn()
+          return
+        }
+
+        this.moveToTile(bestMove.from, bestMove.to)
+        moveCount++
+        setTimeout(makeOneMove, 500)
+      }
+
+      setTimeout(makeOneMove, 800)
+    },
+    findBestAIMove: function():any {
+      const aiPlayerIndex = 1
+      let allMoves:any[] = []
+
+      this.gameData.gameBoardData.forEach((tile:any, index:number) => {
+        if (tile.playerIndex !== aiPlayerIndex || tile.moved) return
+
+        const possibilities = this.getAIPossibilities(index, aiPlayerIndex)
+        possibilities.forEach((p:any) => {
+          let score = 0
+
+          if (p.isAttack) {
+            // High priority: attack higher value targets first
+            const targetValue = this.gameData.gameBoardData[p.tileId].value
+            score = 1000 + targetValue * 100
+          } else {
+            // Prefer advancing toward the enemy (higher tile indices)
+            const indexDiff = p.tileId - index
+            if (indexDiff > 0) {
+              score = 100 + indexDiff
+            } else {
+              score = 10
+            }
+          }
+
+          // Add randomness for variety
+          score += Math.random() * 40
+
+          allMoves.push({ from: index, to: p.tileId, score, isAttack: p.isAttack })
+        })
+      })
+
+      if (allMoves.length === 0) return null
+
+      allMoves.sort((a:any, b:any) => b.score - a.score)
+      return allMoves[0]
+    },
+    getAIPossibilities: function(selectedTileIndex:number, aiPlayerIndex:number):any[] {
+      const selectedValue = this.gameData.gameBoardData[selectedTileIndex].value
+      const maxMovement = this.gamePieces[selectedValue - 1].movement
+      const boardSize = this.gameData.gameBoardData.length
+
+      let visited:any = {}
+      visited[selectedTileIndex] = true
+
+      let queue:any[] = []
+      let possibilities:any[] = []
+
+      const initialNeighbors = this.findSurroundingTilesAI(selectedTileIndex)
+      initialNeighbors.forEach((tile:any) => {
+        if (tile.surroundingTileId >= 0 && tile.surroundingTileId < boardSize && !visited[tile.surroundingTileId]) {
+          queue.push({ tileId: tile.surroundingTileId, depth: 1, direction: tile.direction })
+        }
+      })
+
+      while (queue.length > 0) {
+        const current = queue.shift()
+        const tileId = current.tileId
+        const depth = current.depth
+
+        if (visited[tileId]) continue
+        visited[tileId] = true
+
+        const tileData = this.gameData.gameBoardData[tileId]
+        if (!tileData) continue
+
+        if (tileData.playerIndex === -1) {
+          // Empty tile — can move here
+          possibilities.push({ tileId, isAttack: false, direction: current.direction })
+
+          if (depth < maxMovement) {
+            const nextNeighbors = this.findSurroundingTilesAI(tileId)
+            nextNeighbors.forEach((adj:any) => {
+              if (adj.surroundingTileId >= 0 && adj.surroundingTileId < boardSize && !visited[adj.surroundingTileId]) {
+                queue.push({ tileId: adj.surroundingTileId, depth: depth + 1, direction: adj.direction })
+              }
+            })
+          }
+        } else if (tileData.playerIndex === aiPlayerIndex) {
+          // Friendly — pass through but don't land on
+          if (depth < maxMovement) {
+            const nextNeighbors = this.findSurroundingTilesAI(tileId)
+            nextNeighbors.forEach((adj:any) => {
+              if (adj.surroundingTileId >= 0 && adj.surroundingTileId < boardSize && !visited[adj.surroundingTileId]) {
+                queue.push({ tileId: adj.surroundingTileId, depth: depth + 1, direction: adj.direction })
+              }
+            })
+          }
+        } else {
+          // Enemy — check if attackable
+          if (this.checkCanBeAttackedAI(selectedTileIndex, tileId, aiPlayerIndex)) {
+            possibilities.push({ tileId, isAttack: true, direction: current.direction })
+          }
+        }
+      }
+
+      return possibilities
+    },
+    checkCanBeAttackedAI: function(selectedTileIndex:number, targetIndex:number, aiPlayerIndex:number):boolean {
+      const selectedValue = this.gameData.gameBoardData[selectedTileIndex].value
+      const targetValue = this.gameData.gameBoardData[targetIndex].value
+
+      // Sum adjacent friendly AI unit values around the target
+      const adjacentTiles = this.findSurroundingTilesAI(targetIndex)
+      let adjacentCombinations = 0
+
+      adjacentTiles.forEach((adj:any) => {
+        if (adj.surroundingTileId >= 0 && adj.surroundingTileId < this.gameData.gameBoardData.length) {
+          const adjData = this.gameData.gameBoardData[adj.surroundingTileId]
+          if (adjData && adjData.playerIndex === aiPlayerIndex && adj.surroundingTileId !== selectedTileIndex) {
+            adjacentCombinations += adjData.value
+          }
+        }
+      })
+
+      return targetValue <= selectedValue + adjacentCombinations
+    },
+    findSurroundingTilesAI: function(tileIndex:number):any[] {
+      const tileDistance = (100 / this.tileSize)
+      const boardSize = this.gameData.gameBoardData.length
+
+      let array:any[] = [
+        { surroundingTileId: tileIndex - 1, direction: 'left' },
+        { surroundingTileId: tileIndex + 1, direction: 'right' },
+        { surroundingTileId: tileIndex - (tileDistance - 1), direction: 'topLeft' },
+        { surroundingTileId: tileIndex - tileDistance, direction: 'topRight' },
+        { surroundingTileId: tileIndex + (tileDistance - 1), direction: 'bottomLeft' },
+        { surroundingTileId: tileIndex + tileDistance, direction: 'bottomRight' },
+      ]
+
+      // Filter out invalid tiles and handle edge wrapping
+      array = array.filter((tile:any) => {
+        if (tile.surroundingTileId < 0 || tile.surroundingTileId >= boardSize) return false
+
+        const tileData = this.gameData.gameBoardData[tile.surroundingTileId]
+        const currentTileData = this.gameData.gameBoardData[tileIndex]
+
+        if (tileData && tileData.edge && currentTileData && currentTileData.edge) {
+          if (currentTileData.edge === 'right' && tileData.edge === 'left') return false
+          if (currentTileData.edge === 'left' && tileData.edge === 'right') return false
+        }
+
+        return true
+      })
+
+      return array
     },
     startPlaceUnits: function() {
       this.placeUnits = true;
