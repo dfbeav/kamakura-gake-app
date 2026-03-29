@@ -170,27 +170,27 @@ export default Vue.extend({
       gamePieces: [
         {
           value: 1,
-          movement: 4,
+          movement: 6,
           icon: 'ri-user-3-fill',
         },
         {
           value: 2,
-          movement: 1,
+          movement: 5,
           icon: 'ri-group-fill',
         },
         {
           value: 3,
-          movement: 1,
+          movement: 4,
           icon: 'ri-team-fill',
         },
         {
           value: 4,
-          movement: 1,
+          movement: 3,
           icon: 'ri-sword-fill',
         },
         {
           value: 5,
-          movement: 1,
+          movement: 2,
           icon: 'ri-vip-crown-fill',
         }
       ],
@@ -203,53 +203,87 @@ export default Vue.extend({
   },
   methods: {
     checkSurroundingTiles: function() {
+      const selectedValue = this.gameData.gameBoardData[this.selectedTile].value
+      const maxMovement = this.gamePieces[selectedValue - 1].movement
+      const boardSize = this.gameData.gameBoardData.length
 
-      this.surroundingTiles.forEach((tile: any, index: number) => {
+      // BFS to find all reachable tiles within movement range
+      let visited: any = {}
+      visited[this.selectedTile] = true
 
-        //exclude results that are below 0 or above the board size
-        if (tile.surroundingTileId > -1 && tile.surroundingTileId < this.gameData.gameBoardData.length) {
-          if (this.gameData.gameBoardData[tile.surroundingTileId].playerIndex != this.thisUserIndex) {
+      // Queue entries: { tileId, depth }
+      let queue: any[] = []
 
-            let possibility = {
-              tile: tile.surroundingTileId,
-              canMoveTo: this.gameData.gameBoardData[tile.surroundingTileId].playerIndex === -1,
-              directionFromSelectedTile: tile.direction
-            }
+      // Start BFS from the selected tile at depth 0
+      const initialNeighbors = this.findSurroundingTiles(this.selectedTile)
+      initialNeighbors.forEach((tile: any) => {
+        if (tile.surroundingTileId > -1 && tile.surroundingTileId < boardSize && !visited[tile.surroundingTileId]) {
+          queue.push({ tileId: tile.surroundingTileId, depth: 1, direction: tile.direction })
+        }
+      })
 
-            this.$set(this.selectionPossibilities, tile.surroundingTileId, possibility)
+      while (queue.length > 0) {
+        const current = queue.shift()
+        const tileId = current.tileId
+        const depth = current.depth
 
+        if (visited[tileId]) continue
+        visited[tileId] = true
 
+        const tileData = this.gameData.gameBoardData[tileId]
+        if (tileData === undefined) continue
 
-            //find the surrounding tiles of the surrounding tiles
-            this.findSurroundingTiles(tile.surroundingTileId).forEach((adjacentTile: any) => {
+        // Skip tiles owned by this player (can't move onto own units)
+        if (tileData.playerIndex === this.thisUserIndex) continue
 
-              //exclude results that are below 0 or above the board size
-              if (adjacentTile.surroundingTileId > -1 && adjacentTile.surroundingTileId < this.gameData.gameBoardData.length) {
+        if (tileData.playerIndex === -1) {
+          // Empty tile — mark as canMoveTo
+          if (!this.selectionPossibilities[tileId]) {
+            this.$set(this.selectionPossibilities, tileId, {
+              tile: tileId,
+              canMoveTo: true,
+              directionFromSelectedTile: current.direction
+            })
+          }
 
-                if (!this.selectionPossibilities[tile.surroundingTileId].hasOwnProperty('surroundingTiles')) {
-                  this.$set(this.selectionPossibilities[tile.surroundingTileId], 'surroundingTiles' , [])
-                }
-
-                let fullTileInfo = {
-                  ...this.gameData.gameBoardData[adjacentTile.surroundingTileId],
-                  'direction': adjacentTile.direction,
-                  'surroundingTileId': adjacentTile.surroundingTileId,
-                }
-
-                console.log(this.selectedTile, tile.surroundingTileId)
-
-                this.selectionPossibilities[tile.surroundingTileId].surroundingTiles.push(fullTileInfo)
-
-
-                //add the canBeAttacked property to the surrounding tiles
-                this.$set(this.selectionPossibilities[tile.surroundingTileId], 'canBeAttacked', this.checkCanBeAttacked(tile.surroundingTileId))
-
+          // Continue BFS through empty tiles if we have movement left
+          if (depth < maxMovement) {
+            const nextNeighbors = this.findSurroundingTiles(tileId)
+            nextNeighbors.forEach((adj: any) => {
+              if (adj.surroundingTileId > -1 && adj.surroundingTileId < boardSize && !visited[adj.surroundingTileId]) {
+                queue.push({ tileId: adj.surroundingTileId, depth: depth + 1, direction: adj.direction })
+              }
+            })
+          }
+        } else {
+          // Enemy tile — check if it can be attacked (only adjacent, depth 1)
+          if (depth === 1) {
+            // Build surroundingTiles info for attack calculation
+            const adjTiles = this.findSurroundingTiles(tileId)
+            let surroundingTilesInfo: any[] = []
+            adjTiles.forEach((adj: any) => {
+              if (adj.surroundingTileId > -1 && adj.surroundingTileId < boardSize) {
+                surroundingTilesInfo.push({
+                  ...this.gameData.gameBoardData[adj.surroundingTileId],
+                  direction: adj.direction,
+                  surroundingTileId: adj.surroundingTileId,
+                })
               }
             })
 
+            this.$set(this.selectionPossibilities, tileId, {
+              tile: tileId,
+              canMoveTo: false,
+              canBeAttacked: false,
+              directionFromSelectedTile: current.direction,
+              surroundingTiles: surroundingTilesInfo
+            })
+
+            this.$set(this.selectionPossibilities[tileId], 'canBeAttacked', this.checkCanBeAttacked(tileId))
           }
+          // Don't BFS through enemy tiles
         }
-      })
+      }
     },
     addToThisTile(index:number) {
       if (this.gameData.gameBoardData[index].playerIndex === -1 && !this.completedUnitPlacement) {
