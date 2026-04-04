@@ -1,0 +1,14 @@
+Options -MultiViews
+RewriteEngine On
+RewriteBase /
+
+# Do not rewrite requests for actual files or directories
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+
+# Do not rewrite _nuxt assets
+RewriteRule ^_nuxt/ - [L]
+
+# Fallback all other requests to index.html
+RewriteRule ^ index.html [L]

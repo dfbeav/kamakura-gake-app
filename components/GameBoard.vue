@@ -129,7 +129,7 @@
           >
             <h1 class="mb-0">
                 <i
-                  v-if="tile.playerIndex > -1"
+                  v-if="tile.playerIndex > -1 && (!fogOfWar || visibleTilesSet.has(index))"
                   class="playerIcon"
                   :class="[
                     gamePieces[tile.value - 1] ? gamePieces[tile.value - 1].icon : '',
@@ -140,7 +140,7 @@
                 </i>
             </h1>
             <p
-              v-if="tile.playerIndex > -1"
+              v-if="tile.playerIndex > -1 && (!fogOfWar || visibleTilesSet.has(index))"
               class="pieceValue"
               :class="[
                 'text-' + gameData.players[tile.playerIndex].color,
@@ -149,12 +149,12 @@
               >
                 {{ tile.value }}
               </p>
-              <!-- "Hove here" icon -->
+              <!-- "Hover here" icon -->
             <div
               class="topTile hex1 bg-light"
               :class="[
                 selectedTile === index ? 'selected' : '',
-                selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked ? 'canBeAttacked' : '',
+                selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked && (!fogOfWar || visibleTilesSet.has(index)) ? 'canBeAttacked' : '',
                 selectionPossibilities[index] != undefined && selectionPossibilities[index].canMoveTo ? 'canMoveTo' : ''
                 ]"
               ></div>
@@ -163,8 +163,12 @@
               class="bottomTile hex1 bg-info"
               ></div>
             <div
-              v-if="selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked"
+              v-if="selectionPossibilities[index] != undefined && selectionPossibilities[index].canBeAttacked && (!fogOfWar || visibleTilesSet.has(index))"
               class="bottomTile hex1 bg-warning"
+              ></div>
+            <div
+              v-if="fogOfWar && !visibleTilesSet.has(index)"
+              class="fogTile hex1"
               ></div>
         </div>
       </template>
@@ -178,7 +182,7 @@ import Vue from 'vue'
 
 export default Vue.extend({
   name: 'gameBoard',
-  props: ['placeUnits', 'playGame', 'startingPieces', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData', 'aiThinking'],
+  props: ['placeUnits', 'playGame', 'startingPieces', 'tileSize', 'tileHeight', 'thisUserIndex', 'gameData', 'aiThinking', 'fogOfWar'],
   data() {
     return {
 
@@ -563,6 +567,35 @@ export default Vue.extend({
     },
     totalUnitsOnBoard (): number {
       return (Object.values(this.unitCounts) as number[]).reduce((sum, count) => sum + count, 0)
+    },
+    visibleTilesSet (): Set<number> {
+      if (!this.fogOfWar || !this.playGame) {
+        return new Set()
+      }
+      const FOG_RADIUS = 3
+      const boardSize = this.gameData.gameBoardData.length
+      const visible = new Set<number>()
+      this.gameData.gameBoardData.forEach((tile: any, index: number) => {
+        if (tile.playerIndex !== this.thisUserIndex) return
+        const visited: Record<number, boolean> = {}
+        visited[index] = true
+        visible.add(index)
+        const queue: Array<{tileId: number, depth: number}> = [{ tileId: index, depth: 0 }]
+        while (queue.length > 0) {
+          const current = queue.shift()!
+          if (current.depth >= FOG_RADIUS) continue
+          const neighbors = this.findSurroundingTiles(current.tileId)
+          neighbors.forEach((neighbor: any) => {
+            const id = neighbor.surroundingTileId
+            if (id >= 0 && id < boardSize && !visited[id]) {
+              visited[id] = true
+              visible.add(id)
+              queue.push({ tileId: id, depth: current.depth + 1 })
+            }
+          })
+        }
+      })
+      return visible
     },
   }
 
